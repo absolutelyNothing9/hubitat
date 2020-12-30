@@ -1,0 +1,330 @@
+/*
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ *  use this file except in compliance with the License. You may obtain a copy
+ *  of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ *  License for the specific language governing permissions and limitations
+ *  under the License.
+ */
+
+preferences {
+        input "token", "text", title: "Token", required: true
+        input "device_key", "string", title: "Device Key", required: true
+        input "name", "text", title: "Device Name", required: true
+		}
+
+metadata {
+	definition (name: "Moodo Box ", namespace: "ajkr", author: "Andy Kroll") {
+        capability "Switch"
+        capability "Battery"
+        capability "Refresh"
+        capability "Polling"
+        capability "Health Check"
+        capability "Switch Level"
+
+        
+
+        command "shuffleOn"
+        command "shuffleOff"
+        command "intervalOn"
+        command "intervalOff"
+        command "setLevel0", ["number"]   
+        command "setLevel1", ["number"]  
+        command "setLevel2", ["number"]  
+        command "setLevel3", ["number"]  
+        
+        
+        attribute "Fan Speed", "integer"
+        attribute "Interval", "boolean"
+        attribute "Shuffle", "string"
+
+
+        attribute "Slot 0 Speed", "number"
+        attribute "Slot0", "string"
+        attribute "Slot 0 Color", "string"
+        attribute "Slot 0 BG", "string"
+        
+        attribute "Slot 1 Speed", "integer"
+        attribute "Slot 1 Scent", "string"
+        attribute "Slot 1 Color", "string"
+        attribute "Slot 1 BG", "string"
+        
+        attribute "Slot 2 Speed", "integer"
+        attribute "Slot 2 Scent", "string"
+        attribute "Slot 2 Color", "string"
+        attribute "Slot 2 BG", "string"
+        
+        attribute "Slot 3 Speed", "integer"
+        attribute "Slot 3 Scent", "string"
+        attribute "Slot 3 Color", "string"   
+        attribute "Slot 3 BG", "string"
+        
+
+	}
+
+	simulator {
+		status "on": "box_status: 1"
+		status "off": "box_status: 0"
+		status "occupied": "occupancy: 1"
+		status "unoccupied": "occupancy: 0"
+
+
+	}
+
+
+}
+
+
+
+
+
+
+def myCallbackMethod(response, data) {
+    if(data["dataitem1"] == "datavalue1")
+        log.debug "status of post call is: ${response.status}"
+
+}
+
+
+
+
+
+
+
+
+
+def off() {
+ def postParams = [
+     uri: "https://rest.moodo.co/api/boxes/${device_key}",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"]
+			]
+     sendEvent(name:"Switch", value: off, displayed: true)
+
+     log.debug"${name} Moodo Turned Off"
+	 asynchttpDelete('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+callAPI()
+}
+
+
+
+def on() {
+ def postParams = [
+     uri: "https://rest.moodo.co/api/boxes/${device_key}",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"]
+			]
+     sendEvent(name:"Switch", value: on, displayed: true)
+     log.debug"${name} Moodo Turned On"
+	 asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+
+
+
+def intervalOn() {
+ def postParams = [
+     uri: "https://rest.moodo.co/api/interval/${device_key}",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"]
+			]
+     sendEvent(name:"Interval", value: "On", displayed: true)
+     log.debug"${name} Moodo Interval is On"
+	 asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+
+def intervalOff() {
+ def postParams = [
+     uri: "https://rest.moodo.co/api/interval/${device_key}",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"]
+			]
+     sendEvent(name:"Interval", value: "Off", displayed: true)
+     log.debug"${name} Moodo Interval is Off"
+	 asynchttpDelete('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+
+def shuffle() {
+    if (shuffle.equals("Off")) {
+        shuffleOn()
+        sendEvent(name:"shuffle", value: true, displayed: true)
+        asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+        }
+    if (shuffle.equals("On")) {
+        shuffleOff()
+        sendEvent(name:"shuffle", value: false, displayed: true)
+        asynchttpDelete('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+        }
+    if (shuffle.equals("null")) {
+        shuffleOff()
+        sendEvent(name:"shuffle", value: false, displayed: true)
+        asynchttpDelete('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+        }
+
+
+}
+def setLevel(value) {
+
+	def level = Math.max(Math.min(value as Integer, 99), 0)
+    if (level > 0) {
+		sendEvent(name: "switch", value: "on")
+	} 
+    else {
+		sendEvent(name: "switch", value: "off")
+	}
+	sendEvent(name: "Fan Speed", value: level, unit: "%")
+
+    def postParams = [
+            uri: "https://rest.moodo.co/api/intensity/${device_key}",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"],
+            body: [
+                      "fan_volume": level,
+                      "restful_request_id": "string"
+                    
+             ],
+			        ]
+
+	asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+def setLevel0(value) {
+
+	def level0 = Math.max(Math.min(value as Integer, 99), 0)
+
+	sendEvent(name: "Slot 0 Speed", value: level0, unit: "%")
+
+    def postParams = [
+            uri: "https://rest.moodo.co/api/boxes",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"],
+            body: [
+               "device_key": "${device_key}",
+                  "settings_slot0": [
+                        "fan_speed": level0,
+                        "fan_active": true
+                      ],
+                      "restful_request_id": "string"
+                    
+                 ],
+			        ]
+
+	asynchttpPut('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+def setLevel1(value) {
+
+	def level1 = Math.max(Math.min(value as Integer, 99), 0)
+
+	sendEvent(name: "Slot 1 Speed", value: level1, unit: "%")
+
+    def postParams = [
+            uri: "https://rest.moodo.co/api/boxes",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"],
+            body: [
+               "device_key": "${device_key}",
+                "box_status": 1,
+                "settings_slot0": [
+                        "fan_speed": level0,
+                        "fan_active": true
+                      ], 
+                "settings_slot1": [
+                        "fan_speed": level1,
+                        "fan_active": true
+                 ],
+                "settings_slot2": [
+                        "fan_speed": level2,
+                        "fan_active": true
+                      ],
+                "settings_slot3": [
+                        "fan_speed": level3,
+                        "fan_active": true
+                      ],
+                      "restful_request_id": "string"
+                    
+                 ],
+			        ]
+
+	asynchttpPut('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+def setLevel2(value) {
+
+	def level2 = Math.max(Math.min(value as Integer, 99), 0)
+
+	sendEvent(name: "Slot 2 Speed", value: level2, unit: "%")
+
+    def postParams = [
+            uri: "https://rest.moodo.co/api/boxes",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"],
+            body: [
+               "device_key": "${device_key}",
+                "settings_slot2": [
+                        "fan_speed": level2,
+                        "fan_active": true
+                ],
+                      "restful_request_id": "string"
+                    
+                 ],
+			        ]
+
+	asynchttpPut('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+def setLevel3(value) {
+
+	def level3 = Math.max(Math.min(value as Integer, 99), 0)
+
+	sendEvent(name: "Slot 3 Speed", value: level3, unit: "%")
+
+    def postParams = [
+            uri: "https://rest.moodo.co/api/boxes",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"],
+            body: [
+               "device_key": "${device_key}",
+                "settings_slot3": [
+                        "fan_speed": level3,
+                        "fan_active": true
+                ],
+                      "restful_request_id": "string"
+                    
+                 ],
+			        ]
+
+	asynchttpPut('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+def shuffleOn() {
+ def postParams = [
+     uri: "https://rest.moodo.co/api/shuffle/${device_key}",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"]
+			]
+     log.debug"${name} Shuffle is On"
+     sendEvent(name:"Shuffle", value: "On", displayed: true)
+	 asynchttpPost('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
+
+def shuffleOff() {
+ def postParams = [
+     uri: "https://rest.moodo.co/api/shuffle/${device_key}",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+			headers: ['token': "${token}"]
+			]
+     log.debug"${name} Shuffle is Off"
+     sendEvent(name:"Shuffle", value: "Off", displayed: true)
+	 asynchttpDelete('myCallbackMethod', postParams, [dataitem1: "datavalue1"])
+}
