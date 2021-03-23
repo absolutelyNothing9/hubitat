@@ -41,34 +41,29 @@ metadata {
 
 
         
-        attribute "Sound Status", "integer"     
-        attribute "Sound Mute", "integer"
-        attribute "Sleep Volume", "integer"
-        attribute "Sleep Sound", "integer"
-        attribute "Page Volume", "integer"
+        attribute "SoundStatus", "integer"     
+        attribute "SoundMute", "integer"
+        attribute "SleepVolume", "integer"
+        attribute "SleepSound", "integer"
+        attribute "PageVolume", "integer"
         attribute "Balance", "integer"
-        attribute "Sound Mode", "integer"
-        attribute "Relax Sound", "integer"
-        attribute "Relax Volume", "integer"
-        attribute "Light Status", "integer"
-        attribute "Light Level", "integer"
-        attribute "Light Color", "string"
+        attribute "SoundMode", "integer"
+        attribute "RelaxSound", "integer"
+        attribute "RelaxVolume", "integer"
+        attribute "LightStatus", "integer"
+        attribute "LightLevel", "integer"
+        attribute "LightColor", "string"
+        attribute "SoundScheduled", "integer"
+        attribute "LightScheduled", "integer"
+        attribute "SoundOn", "string"
+        attribute "SoundOff", "string"
+        attribute "LightOn", "string"
+        attribute "LightOff", "string"
+        attribute "Ramp", "integer"
+        attribute "DisableButton", "integer"
+        attribute "RoomName", "string"
+        attribute "Dwelling", "string"   
 
-        
-
-        attribute "Sound Scheduled", "integer"
-        attribute "Slot1_Color", "string"
-        attribute "Slot1_BG", "string"
-        
-        attribute "Slot2_Speed", "integer"
-        attribute "Slot2_Scent", "string"
-        attribute "Slot2_Color", "string"
-        attribute "Slot2_BG", "string"
-        
-        attribute "Slot3_Speed", "integer"
-        attribute "Slot3_Scent", "string"
-        attribute "Slot3_Color", "string"   
-        attribute "Slot3_BG", "string"
         
 
 	}
@@ -138,43 +133,71 @@ def getDevice(response, data) {
     log.info "${response.json.getAt(3).property.value}"
 
     def soundStatus = "$deviceProperties.soundStatus"
-        sendEvent(name: "Sound Status", value: soundStatus)
+        sendEvent(name: "SoundStatus", value: soundStatus)
     
     def soundMute = "$deviceProperties.soundMute"
-        sendEvent(name: "Sound Mute", value: soundMute)
+        sendEvent(name: "SoundMute", value: soundMute)
     
     def sleepVolume = "$deviceProperties.sleepVolume"
-        sendEvent(name: "Sleep Volume", value: sleepVolume)
+        sendEvent(name: "SleepVolume", value: sleepVolume)
     
     def sleepSound = "$deviceProperties.sleepSound"
-        sendEvent(name: "Sleep Sound", value: sleepSound)
+        sendEvent(name: "SleepSound", value: sleepSound)
     
     def pageVol = "$deviceProperties.pageVol"
-        sendEvent(name: "Page Vol", value: pageVol)
+        sendEvent(name: "PageVolume", value: pageVol)
    
     def balance = "$deviceProperties.balance"
         sendEvent(name: "Balance", value: balance)
     
     def soundMode = "$deviceProperties.soundMode"
-        sendEvent(name: "Sound Mode", value: soundMode)
+        sendEvent(name: "SoundMode", value: soundMode)
     
     def relaxSound = "$deviceProperties.relaxSound"
-        sendEvent(name: "Relax Sound", value: relaxSound)
+        sendEvent(name: "RelaxSound", value: relaxSound)
     
     def relaxVolume = "$deviceProperties.relaxVolume"
-        sendEvent(name: "Relax Volume", value: relaxVolume)
+        sendEvent(name: "RelaxVolume", value: relaxVolume)
     
     def lightStatus = "$deviceProperties.lightStatus"
-        sendEvent(name: "Light Status", value: lightStatus)
+        sendEvent(name: "LightStatus", value: lightStatus)
     
     def lightLevel = "$deviceProperties.lightLevel"
-        sendEvent(name: "Light Level, value: lightLevel)
+        sendEvent(name: "LightLevel", value: lightLevel)
     
     def lightColor = "$deviceProperties.lightColor"
-        sendEvent(name: "Light Color", value: lightColor)
+        sendEvent(name: "LightColor", value: lightColor)
     
     def soundScheduled = "$deviceProperties.soundScheduled"
-        sendEvent(name: "Sound Scheduled", value: soundScheduled)
+        sendEvent(name: "SoundScheduled", value: soundScheduled)
+    
+    
+    def lightScheduled = "$deviceProperties.lightScheduled"
+        sendEvent(name: "LightScheduled", value: lightScheduled)
+    
+    def soundOn = "$deviceProperties.soundOn"
+        sendEvent(name: "SoundOn", value: soundOn)
+    
+    def soundOff = "$deviceProperties.soundOff"
+        sendEvent(name: "SoundOff", value: soundOff)
+    
+    def lightOn = "$deviceProperties.lightOn"
+        sendEvent(name: "LightOn", value: lightOn)
+    
+    def lightOff = "$deviceProperties.soundOff"
+        sendEvent(name: "LightOff", value: lightOff)
+        
+    def ramp = "$deviceProperties.Ramp"
+        sendEvent(name: "Ramp", value: ramp)
+
+    def disableBtn = "$deviceProperties.disableBtn"
+        sendEvent(name: "DisableButton", value: disableBtn)
+    
+    def roomName = "$deviceProperties.roomName"
+        sendEvent(name: "RoomName", value: roomName)
+        
+    def dwelling = "$deviceProperties.dwelling"
+        sendEvent(name: "Dwelling", value: dwelling)
 
  }
 
