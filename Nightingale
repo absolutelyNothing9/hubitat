@@ -1,0 +1,257 @@
+/*
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ *  use this file except in compliance with the License. You may obtain a copy
+ *  of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ *  License for the specific language governing permissions and limitations
+ *  under the License.
+ */
+
+import groovy.json.JsonSlurper
+
+
+preferences {
+        input "token", "text", title: "Token", required: true
+        input "device_key", "string", title: "Device Key", required: true
+        input "name", "text", title: "Device Name", required: true
+		}
+
+metadata {
+	definition (name: "Nightingale", namespace: "ajkr", author: "Andy Kroll") {
+        capability "Switch"
+        capability "Battery"
+        capability "Refresh"
+        capability "Polling"
+        capability "Health Check"
+        capability "Switch Level"
+
+        
+
+        command "Crickets"
+        command "Loons"
+        command "Rain"
+        command "Lakeshore"
+        command "Whales"
+        command "Toggle Sound Mode"
+
+
+        
+        attribute "Sound Status", "integer"     
+        attribute "Sound Mute", "integer"
+        attribute "Sleep Volume", "integer"
+        attribute "Sleep Sound", "integer"
+        attribute "Page Volume", "integer"
+        attribute "Balance", "integer"
+        attribute "Sound Mode", "integer"
+        attribute "Relax Sound", "integer"
+        attribute "Relax Volume", "integer"
+        attribute "Light Status", "integer"
+        attribute "Light Level", "integer"
+        attribute "Light Color", "string"
+
+        
+
+        attribute "Sound Scheduled", "integer"
+        attribute "Slot1_Color", "string"
+        attribute "Slot1_BG", "string"
+        
+        attribute "Slot2_Speed", "integer"
+        attribute "Slot2_Scent", "string"
+        attribute "Slot2_Color", "string"
+        attribute "Slot2_BG", "string"
+        
+        attribute "Slot3_Speed", "integer"
+        attribute "Slot3_Scent", "string"
+        attribute "Slot3_Color", "string"   
+        attribute "Slot3_BG", "string"
+        
+
+	}
+
+	simulator {
+		status "on": "box_status: 1"
+		status "off": "box_status: 0"
+		status "occupied": "occupancy: 1"
+		status "unoccupied": "occupancy: 0"
+
+
+	}
+
+
+}
+
+
+
+
+def getAccessTokens() {
+
+    def postParams = [
+        uri: "https://user-field.aylanetworks.com/users/sign_in",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            body: '{"user": {"email": "andyjarmijo@gmail.com","password": "Diseased1!","application" :{"app_id": "ng-ios-id","app_secret": "ng-ios-4jbbS9drkYCdk3x4uviG9Mduhrs"}}'
+           
+                  ]
+    
+    asynchttpPost('signIn', postParams, [dataitem1: "datavalue1"])
+}
+def off() {
+
+    def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W001422480/properties",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            body: '{"user": {"email": "andyjarmijo@gmail.com","password": "Diseased1!","application" :{"app_id": "ng-ios-id","app_secret": "ng-ios-4jbbS9drkYCdk3x4uviG9Mduhrs"}}'
+           
+                  ]
+    
+    asynchttpPost('signIn', postParams, [dataitem1: "datavalue1"])
+}
+               
+def on() {
+
+    def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W001422480/properties",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"]
+]
+    
+    asynchttpGet('getDevice', postParams, [Authorization: "Bearer ${state.accessToken}"])
+}
+                
+
+
+def getDevice(response, data) {
+
+        Map deviceProperties = new 
+            groovy.json.JsonSlurper().parseText(response.json.getAt(3).property.value)
+    
+         
+    log.debug "status of post call is: ${response.status}"
+    log.debug "$deviceProperties.sleepVolume"
+    log.info "${response.json.getAt(3).property.value}"
+
+    def soundStatus = "$deviceProperties.soundStatus"
+        sendEvent(name: "Sound Status", value: soundStatus)
+    
+    def soundMute = "$deviceProperties.soundMute"
+        sendEvent(name: "Sound Mute", value: soundMute)
+    
+    def sleepVolume = "$deviceProperties.sleepVolume"
+        sendEvent(name: "Sleep Volume", value: sleepVolume)
+    
+    def sleepSound = "$deviceProperties.sleepSound"
+        sendEvent(name: "Sleep Sound", value: sleepSound)
+    
+    def pageVol = "$deviceProperties.pageVol"
+        sendEvent(name: "Page Vol", value: pageVol)
+   
+    def balance = "$deviceProperties.balance"
+        sendEvent(name: "Balance", value: balance)
+    
+    def soundMode = "$deviceProperties.soundMode"
+        sendEvent(name: "Sound Mode", value: soundMode)
+    
+    def relaxSound = "$deviceProperties.relaxSound"
+        sendEvent(name: "Relax Sound", value: relaxSound)
+    
+    def relaxVolume = "$deviceProperties.relaxVolume"
+        sendEvent(name: "Relax Volume", value: relaxVolume)
+    
+    def lightStatus = "$deviceProperties.lightStatus"
+        sendEvent(name: "Light Status", value: lightStatus)
+    
+    def lightLevel = "$deviceProperties.lightLevel"
+        sendEvent(name: "Light Level, value: lightLevel)
+    
+    def lightColor = "$deviceProperties.lightColor"
+        sendEvent(name: "Light Color", value: lightColor)
+    
+    def soundScheduled = "$deviceProperties.soundScheduled"
+        sendEvent(name: "Sound Scheduled", value: soundScheduled)
+
+ }
+
+
+
+
+
+
+
+
+def refresh() {
+
+    def postParams = [
+        uri: "https://user-field.aylanetworks.com/users/sign_in",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            body: '{"user": {"email": "andyjarmijo@gmail.com","password": "Diseased1!","application" :{"app_id": "ng-ios-id","app_secret": "ng-ios-4jbbS9drkYCdk3x4uviG9Mduhrs"}}'
+           
+                  ]
+    
+    asynchttpPost('signIn', postParams, [dataitem1: "datavalue1"])
+    
+//schedule the rescheduler to schedule refresh ;)
+  if ((state.polling?.rescheduler?:0) + 86400 < now()) {
+    log.info "Scheduling Auto Rescheduler.."
+    runEvery30Minutes(runRefresh)    
+    state.polling?.rescheduler = now()
+  }
+}
+// Schedule refresh
+def runRefresh(evt) {
+  log.info "Last refresh was "  + ((now() - state.polling?.last?:0)/60000) + " minutes ago"
+  // Reschedule if  didn't update for more than 5 minutes plus specified polling
+  if ((((state.polling?.last?:0) + (((settings.polling?.toInteger()?:1>0)?:1) * 60000) + 300000) < now()) && canSchedule()) {
+    log.info "Scheduling Auto Refresh.."
+    schedule("* */" + ((settings.polling?.toInteger()?:1>0)?:1) + " * * * ?", refresh)
+  }
+    
+  // Force Refresh NOWWW!!!!
+  refresh()
+    
+  //Update rescheduler's last run
+  if (!evt) state.polling?.rescheduler = now()
+}
+def signIn(response, data) {
+        if(response.status == 200)
+            {
+                jsonMap = response.data
+                if (response.data) {
+                    state.refreshToken = response.json.refresh_token
+                    state.accessToken = response.json.access_token
+                    state.session = now() + 86400
+            }
+                
+
+        log.info "Acess Token being ${state.accessToken}"
+        log.info "Refresh Token being ${state.refreshToken}"
+        log.info "Expiration being ${state.session}"
+    
+}
+}
+
+def refreshDevices() {
+
+    def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/devices",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"]
+
+           
+                  ]
+    
+    asynchttpGet('getDevices', postParams, [Authorization: "Bearer ${state.accessToken}"])
+}
+def getDevices(response, data) {
+        log.debug "status of post call is: ${response.status}"
+        log.info "${response.data}"
+
+}
