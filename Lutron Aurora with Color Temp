@@ -1,0 +1,208 @@
+/**
+ *  Partly based on source originally copyright 2018-2019 SmartThings
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License. You may obtain a copy of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *  for the specific language governing permissions and limitations under the License.
+ *
+ */
+
+import com.hubitat.zigbee.DataType
+
+metadata {
+	definition (name: "Lutron Aurora Dimmer with Color Temperature", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+		capability "Actuator"
+		capability "Switch"
+		capability "PushableButton"
+		capability "Switch Level"
+		capability "Configuration"
+        capability "Color Control"
+        capability "Color Temperature"
+        
+        command "push", ["number"]
+
+
+        command "set7AM"
+        command "set10AM"
+        command "set5PM"
+        command "set8PM"
+        command "set11PM"
+        command "setNight"
+        command "setTouch", [[name:"touch","type":"ENUM","description":"Physical or Not", multiple: true,"constraints":["physical", "digital"]]]
+
+
+        attribute "battery", "integer"
+        attribute "numberOfButtons", "string"
+        attribute "pushed","string"
+        attribute "touch","string"
+
+     
+     
+
+		fingerprint profileId: "0104", inClusters: "0000,0001,0003,1000,FC00", outClusters: "0003,0004,0006,0008,0019,1000", manufacturer: "Lutron", model: "Z3-1BRL"	}
+}
+
+
+
+def parse(String description) {
+	logDebug "description = $description"
+	def event = zigbee.getEvent(description)
+	if (event) {
+		if (event.name=="level" && event.value==0) {
+            log.info "$device level = 0"
+        }
+		else {
+            log.debug "sending ${event}"
+			sendEvent(event)
+		}
+	} else {
+		def descMap = zigbee.parseDescriptionAsMap(description)
+        if (descMap && descMap.clusterInt == 0x008) {
+            log.debug "8 data = ${descMap.data}"
+            logDebug("Knob turned, setting level from device")
+            def dataList = descMap.data
+            if (dataList.size() < 3) {
+                logDebug "Ignoring data ${dataList}"
+            } else {            
+                int deviceLevel = Integer.parseInt(descMap.data[0], 16) * (100/254)
+                log.info "$device level = ${deviceLevel}"                
+			    setLevelPhysical(deviceLevel)
+            }            
+        } else if (descMap && descMap.clusterInt == 0x0006) {            
+            logDebug("Button pressed")
+            sendEvent(name: "switch", value: device.currentValue("switch") == "on" ? "off" : "on", type: "physical", descriptionText: "$device switch $device.currentValue.")
+			sendEvent(name: "pushed", value: value, type: "physical", isStateChange: true, descriptionText: "$device button 1 was pushed")
+		} else {
+			log.warn "DID NOT PARSE MESSAGE for description : $description"
+			log.debug "${descMap}"
+		}
+	}
+}
+
+def setTouch(value) {
+	sendEvent(name: "touch", value: value)
+}
+
+def off() {
+	sendEvent(name: "switch", value: "off", isStateChange: true, type: "digital", descriptionText: "$device turned off programatically.")
+
+}
+
+def on() {
+	sendEvent(name: "switch", value: "on", isStateChange: true, type: "digital", descriptionText: "$device turned on programatically.")
+}
+
+def setLevel(value, rate = null) {
+		sendEvent(name: "level", value: value, type: "digital", descriptionText: "Level set programatically.")
+        sendEvent(name: "touch", value: "digital", type: "digital", isStateChange: true)
+        
+        
+     
+	}
+
+def setLevelPhysical(value, rate = null) {
+    	sendEvent(name: "level", value: value, type: "physical")  
+        sendEvent(name: "touch", value: "physical", type: "physical", isStateChange: true)
+        state.touch = "physical"
+	if (value == 0) {
+		sendEvent(name: "switch", value: "off", type: "physical")
+
+	} else {
+		sendEvent(name: "switch", value: "on")
+    }
+}
+
+def set7AM(value) {
+    sendEvent(name: "colorTemperature", value: "6410", isStateChange: true, unit:  "K", descriptionText: "$device set for 7 AM")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    log.debug "$device set to 6410 K for 7 AM"
+}
+
+def set10AM(value) {
+    sendEvent(name: "colorTemperature", value: "4291", isStateChange: true, unit:  "K", descriptionText: "$device set for 10 AM")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    log.debug "$device set to 4291 K for 10 AM"}
+
+def set5PM(value) {
+    sendEvent(name: "colorTemperature", value: "2890", isStateChange: true, unit:  "K", descriptionText: "$device set for 5 PM")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    log.debug "$device set to 2890 K for 5 PM"
+}
+
+def set8PM(value) {
+    sendEvent(name: "colorTemperature", value: "2237", isStateChange: true, unit:  "K", descriptionText: "$device set for 8 PM")
+    sendEvent(name: "level", value: "60", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    log.debug "$device set to 2237 K for 8 PM"
+}
+
+def set11PM(value) {
+    sendEvent(name: "colorTemperature", value: "1700", isStateChange: true, unit:  "K", descriptionText: "$device set for 11 PM")
+    sendEvent(name: "level", value: "20", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    log.debug "$device set to 1700 K for 11 PM"
+}
+
+def setNight(value) {
+    sendEvent(name: "colorTemperature", value: "1700", isStateChange: true, unit:  "K", descriptionText: "$device set for night")
+    sendEvent(name: "level", value: "10", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    log.debug "$device set to 1700 K for night"
+}
+
+
+def setNight2(value) {
+    sendEvent(name: "colorName", value: "Sodium", isStateChange: true, descriptionText: "$device set for night")
+    sendEvent(name: "level", value: "10", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    log.debug "$device set to 1700 K for night"
+}
+
+
+
+
+def installed() {
+
+    sendEvent(name: "switch", value: "on", displayed: false)
+	sendEvent(name: "level", value: "100", displayed: false)
+    sendEvent(name: "touch", value: "digital", type: "digital", displayed: false)
+	sendEvent(name: "pushed", value: 1, displayed: true)
+	sendEvent(name: "numberOfButtons", value: 3, displayed: false)
+
+}
+
+
+
+
+
+
+def configure() {
+    zigbee.onOffConfig() + 
+        zigbee.levelConfig() +
+        zigbee.enrollResponse() + 
+        zigbee.readAttribute(zigbee.POWER_CONFIGURATION_CLUSTER, 0x20)
+}
+
+def logDebug(str) {
+    log.debug(str)
+}
+
+void setColorTemperature(value) {
+   logDebug("Setting color temperature to $value K")
+    sendEvent(name: "colorTemperature", value: value, unit: "K", isStateChange: true, displayed: "true", descriptionText: "$device color temperature adjusted.")
+}
+
+void push(button){
+       sendEvent(name: "pushed", value: value, type: "digital", isStateChange: true, descriptionText: "$device was pushed")
+       sendButtonEvent("pushed", button, "digital", isStateChange: true)
+}
+
+
