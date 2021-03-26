@@ -31,26 +31,29 @@ metadata {
         capability "Switch Level"
 
         
-
+        command "pfuck2"
         command "Crickets"
         command "Loons"
         command "Rain"
         command "Lakeshore"
         command "Whales"
         command "Toggle Sound Mode"
+        command "refreshDevices"
+        command "pfuck"
+        command "volume8"
 
 
         
-        attribute "SoundStatus", "integer"     
-        attribute "SoundMute", "integer"
+        attribute "SoundStatus", "string"     
+        attribute "SoundMute", "string"
         attribute "SleepVolume", "integer"
         attribute "SleepSound", "integer"
         attribute "PageVolume", "integer"
         attribute "Balance", "integer"
-        attribute "SoundMode", "integer"
+        attribute "SoundMode", "string"
         attribute "RelaxSound", "integer"
         attribute "RelaxVolume", "integer"
-        attribute "LightStatus", "integer"
+        attribute "LightStatus", "string"
         attribute "LightLevel", "integer"
         attribute "LightColor", "string"
         attribute "SoundScheduled", "integer"
@@ -83,6 +86,188 @@ metadata {
 
 
 
+
+def pfuck() {
+
+    def datapoint = '{"datapoint": {"value": "{\\"soundStatus\\":\\"0\\"}"'
+
+    def body2 = ['{"soundStatus":"0"}']
+    def body3 = ['{"datapoint": {"value" : "{\"soundStatus\":\"1\",\"soundMute\":\"0\",\"sleepVolume\":\"9\",\"sleepSound\":\"210\",\"pageVol\":\"5\",\"balance\":\"0\",\"soundMode\":\"1\",\"relaxSound\":\"520\",\"relaxVolume\":\"7\",\"lightStatus\":\"0\",\"lightLevel\":\"10\",\"lightColor\":\"ffff00\",\"soundScheduled\":\"1\",\"lightScheduled\":\"0\",\"soundOn\":\"03:00\",\"soundOff\":\"12:00\",\"lightOn\":\"22:00\",\"lightOff\":\"06:00\",\"ramp\":\"60\",\"disableBtn\":\"0\",\"roomName\":\"Bedroom\",\"dwelling\":\"Home\"}"}}'] 
+    def postParams = [
+        uri: "https://cuntface.requestcatcher.com/",
+
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+        body: '{"datapoint": {"value": "{\\"soundStatus\\":\\"0\\"}"}}'
+                 ]
+    
+    asynchttpPost('allPurposeFlour', postParams, [datapoint: '"datapoint": {"value" : "{\"relaxVolume\":\"7\"}"}}'])
+}
+def pfuck2() {
+    def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W001422480/properties",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"]
+]
+    
+    asynchttpGet('getDevice', postParams, [dataitem1: "datavalue1"])
+}
+def allPurposeFlour(response, data) {
+        log.debug "status of post call is: ${response.status}"
+        log.info "${response.data}"
+
+}
+
+                
+
+
+def getDevice(response, data) {
+      log.debug "status of post call is: ${response.status}"
+        log.info "${response.data}"
+        Map deviceProperties = new 
+            groovy.json.JsonSlurper().parseText(response.json.getAt(3).property.value)
+    
+
+
+    def soundStatus = "${deviceProperties.soundStatus}"
+        sendEvent(name: "SoundStatus", value: soundStatus)
+    
+    def soundMute = "${deviceProperties.soundMute}"
+        sendEvent(name: "SoundMute", value: soundMute)
+    
+    def sleepVolume = "${deviceProperties.sleepVolume}"
+        sendEvent(name: "SleepVolume", value: sleepVolume)
+    
+    def sleepSound = "${deviceProperties.sleepSound}"
+        sendEvent(name: "SleepSound", value: sleepSound)
+    
+    def pageVol = "${deviceProperties.pageVol}"
+        sendEvent(name: "PageVolume", value: pageVol)
+   
+    def balance = "${deviceProperties.balance}"
+        sendEvent(name: "Balance", value: balance)
+    
+    def soundMode = "${deviceProperties.soundMode}"
+        sendEvent(name: "SoundMode", value: soundMode)
+    
+    def relaxSound = "${deviceProperties.relaxSound == 510 ? "Lakeshore" : reportValue == 520 ? "Crickets" : reportValue == 530 ? "Loons" : reportValue == 540 ? "Whales" : reportValue == 550 ? "Rain" : "error"}"
+        sendEvent(name: "RelaxSound", value: relaxSound)
+    
+    def relaxVolume = "${deviceProperties.relaxVolume}"
+        sendEvent(name: "RelaxVolume", value: relaxVolume)
+    
+    def lightStatus = "${deviceProperties.lightStatus}"
+        sendEvent(name: "LightStatus", value: lightStatus)
+    
+    def lightLevel = "${deviceProperties.lightLevel}"
+        sendEvent(name: "LightLevel", value: lightLevel)
+    
+    def lightColor = "${deviceProperties.lightColor}"
+        sendEvent(name: "LightColor", value: lightColor)
+    
+    def soundScheduled = "${deviceProperties.soundScheduled}"
+        sendEvent(name: "SoundScheduled", value: soundScheduled)
+    
+    def lightScheduled = "${deviceProperties.lightScheduled}"
+        sendEvent(name: "LightScheduled", value: lightScheduled)
+    
+    def soundOn = "${deviceProperties.soundOn}"
+        sendEvent(name: "SoundOn", value: soundOn)
+    
+    def soundOff = "${deviceProperties.soundOff}"
+        sendEvent(name: "SoundOff", value: soundOff)
+    
+    def lightOn = "${deviceProperties.lightOn}"
+        sendEvent(name: "LightOn", value: lightOn)
+    
+    def lightOff = "${deviceProperties.soundOff}"
+        sendEvent(name: "LightOff", value: lightOff)
+        
+    def ramp = "${deviceProperties.ramp}"
+        sendEvent(name: "Ramp", value: ramp)
+
+    def disableBtn = "${deviceProperties.disableBtn}"
+        sendEvent(name: "DisableButton", value: disableBtn)
+    
+    def roomName = "${deviceProperties.roomName}"
+        sendEvent(name: "RoomName", value: roomName)
+        
+    def dwelling = "${deviceProperties.dwelling}"
+        sendEvent(name: "Dwelling", value: dwelling)
+
+ }
+
+def volume8() {
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"8\\",\\"sleepVolume\\":\\"8\\"}"}}'
+                  ]
+    asynchttpPost('allPurposeFlour', postParams)
+    sendEvent(name: "RelaxSound", value: "Lakeshore")
+}
+
+
+def Lakeshore() {
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"510\\"}"}}'
+                  ]
+    asynchttpPost('allPurposeFlour', postParams)
+    sendEvent(name: "RelaxSound", value: "Lakeshore")
+}
+def Crickets() {
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"520\\"}"}}'
+                  ]
+    asynchttpPost('allPurposeFlour', postParams)
+    sendEvent(name: "RelaxSound", value: "Crickets")
+}
+def Loons() {
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"530\\"}"}}'
+                  ]
+    asynchttpPost('allPurposeFlour', postParams)
+    sendEvent(name: "RelaxSound", value: "Loons")
+}
+def Whales() {
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"540\\"}"}}'
+                  ]
+    asynchttpPost('allPurposeFlour', postParams)
+    sendEvent(name: "RelaxSound", value: "Whales")
+}
+def Rain() {
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"550\\"}"}}'
+                  ]
+    asynchttpPost('allPurposeFlour', postParams)
+    sendEvent(name: "RelaxSound", value: "Rain")
+}
+
+
 def getAccessTokens() {
 
     def postParams = [
@@ -95,118 +280,6 @@ def getAccessTokens() {
     
     asynchttpPost('signIn', postParams, [dataitem1: "datavalue1"])
 }
-def off() {
-
-    def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W001422480/properties",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            body: '{"user": {"email": "andyjarmijo@gmail.com","password": "Diseased1!","application" :{"app_id": "ng-ios-id","app_secret": "ng-ios-4jbbS9drkYCdk3x4uviG9Mduhrs"}}'
-           
-                  ]
-    
-    asynchttpPost('signIn', postParams, [dataitem1: "datavalue1"])
-}
-               
-def on() {
-
-    def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W001422480/properties",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"]
-]
-    
-    asynchttpGet('getDevice', postParams, [Authorization: "Bearer ${state.accessToken}"])
-}
-                
-
-
-def getDevice(response, data) {
-
-        Map deviceProperties = new 
-            groovy.json.JsonSlurper().parseText(response.json.getAt(3).property.value)
-    
-         
-    log.debug "status of post call is: ${response.status}"
-    log.debug "$deviceProperties.sleepVolume"
-    log.info "${response.json.getAt(3).property.value}"
-
-    def soundStatus = "$deviceProperties.soundStatus"
-        sendEvent(name: "SoundStatus", value: soundStatus)
-    
-    def soundMute = "$deviceProperties.soundMute"
-        sendEvent(name: "SoundMute", value: soundMute)
-    
-    def sleepVolume = "$deviceProperties.sleepVolume"
-        sendEvent(name: "SleepVolume", value: sleepVolume)
-    
-    def sleepSound = "$deviceProperties.sleepSound"
-        sendEvent(name: "SleepSound", value: sleepSound)
-    
-    def pageVol = "$deviceProperties.pageVol"
-        sendEvent(name: "PageVolume", value: pageVol)
-   
-    def balance = "$deviceProperties.balance"
-        sendEvent(name: "Balance", value: balance)
-    
-    def soundMode = "$deviceProperties.soundMode"
-        sendEvent(name: "SoundMode", value: soundMode)
-    
-    def relaxSound = "$deviceProperties.relaxSound"
-        sendEvent(name: "RelaxSound", value: relaxSound)
-    
-    def relaxVolume = "$deviceProperties.relaxVolume"
-        sendEvent(name: "RelaxVolume", value: relaxVolume)
-    
-    def lightStatus = "$deviceProperties.lightStatus"
-        sendEvent(name: "LightStatus", value: lightStatus)
-    
-    def lightLevel = "$deviceProperties.lightLevel"
-        sendEvent(name: "LightLevel", value: lightLevel)
-    
-    def lightColor = "$deviceProperties.lightColor"
-        sendEvent(name: "LightColor", value: lightColor)
-    
-    def soundScheduled = "$deviceProperties.soundScheduled"
-        sendEvent(name: "SoundScheduled", value: soundScheduled)
-    
-    
-    def lightScheduled = "$deviceProperties.lightScheduled"
-        sendEvent(name: "LightScheduled", value: lightScheduled)
-    
-    def soundOn = "$deviceProperties.soundOn"
-        sendEvent(name: "SoundOn", value: soundOn)
-    
-    def soundOff = "$deviceProperties.soundOff"
-        sendEvent(name: "SoundOff", value: soundOff)
-    
-    def lightOn = "$deviceProperties.lightOn"
-        sendEvent(name: "LightOn", value: lightOn)
-    
-    def lightOff = "$deviceProperties.soundOff"
-        sendEvent(name: "LightOff", value: lightOff)
-        
-    def ramp = "$deviceProperties.Ramp"
-        sendEvent(name: "Ramp", value: ramp)
-
-    def disableBtn = "$deviceProperties.disableBtn"
-        sendEvent(name: "DisableButton", value: disableBtn)
-    
-    def roomName = "$deviceProperties.roomName"
-        sendEvent(name: "RoomName", value: roomName)
-        
-    def dwelling = "$deviceProperties.dwelling"
-        sendEvent(name: "Dwelling", value: dwelling)
-
- }
-
-
-
-
-
-
-
 
 def refresh() {
 
@@ -259,7 +332,6 @@ def signIn(response, data) {
     
 }
 }
-
 def refreshDevices() {
 
     def postParams = [
@@ -276,5 +348,33 @@ def refreshDevices() {
 def getDevices(response, data) {
         log.debug "status of post call is: ${response.status}"
         log.info "${response.data}"
+
+}
+def off() {
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoint": {"value": "{\\"soundStatus\\":\\"0\\"}"}}'
+                  ]
+    
+    asynchttpPost('allPurposeFlour', postParams)
+    sendEvent(name: "switch", value: "off")
+
+
+}          
+def on() {
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoint": {"value": "{\\"soundStatus\\":\\"1\\"}"}}'
+                  ]
+    
+    asynchttpPost('allPurposeFlour', postParams)
+    sendEvent(name: "switch", value: "on")
+
 
 }
