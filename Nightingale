@@ -392,7 +392,7 @@ void setSoundMode(newMode) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"soundMode\\":\\"0\\"}"}]}}'
+            body: '{"datapoint": {"value": "{\\"soundMode\\":\\"0\\"}"}}'
                   ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -404,7 +404,7 @@ void setSoundMode(newMode) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"soundMode\\":\\"1\\"}"}]}}'
+            body: '{"datapoint": {"value": "{\\"soundMode\\":\\"1\\"}"}}'
                   ]
     
         asynchttpPost('allPurposeFlour', postParams)
@@ -422,7 +422,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-             body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"1\\",\\"sleepVolume\\":\\"1\\"}"}}'
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"1\\",\\"sleepVolume\\":\\"1\\"}"}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "1")
@@ -433,7 +433,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-             body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"2\\",\\"sleepVolume\\":\\"2\\"}"}}'
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"2\\",\\"sleepVolume\\":\\"2\\"}"}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "2")
@@ -444,7 +444,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-             body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"3\\",\\"sleepVolume\\":\\"3\\"}"}}'
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"3\\",\\"sleepVolume\\":\\"3\\"}"}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "3")
@@ -455,7 +455,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-             body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"4\\",\\"sleepVolume\\":\\"4\\"}"}}'
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"4\\",\\"sleepVolume\\":\\"4\\"}"}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "4")
@@ -477,7 +477,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-             body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"6\\",\\"sleepVolume\\":\\"6\\"}"}}'
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"6\\",\\"sleepVolume\\":\\"6\\"}"}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "6")
@@ -488,7 +488,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-             body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"7\\",\\"sleepVolume\\":\\"7\\"}"}}'
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"7\\",\\"sleepVolume\\":\\"7\\"}"}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "7")
@@ -499,7 +499,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-             body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"8\\",\\"sleepVolume\\":\\"8\\"}"}}'
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"8\\",\\"sleepVolume\\":\\"8\\"}"}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "8")
@@ -511,7 +511,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-             body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"9\\",\\"sleepVolume\\":\\"9\\"}"}}'
+            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"9\\",\\"sleepVolume\\":\\"9\\"}"}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "9")
