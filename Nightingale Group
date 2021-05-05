@@ -38,7 +38,7 @@ preferences {
 		}
 
 metadata {
-	definition (name: "Nightingale", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+	definition (name: "Nightingale Group", namespace: "absolutelyNothing", author: "absolutelyNothing") {
         capability "Switch"
         capability "Battery"
         capability "Refresh"
@@ -59,11 +59,12 @@ metadata {
         command "deleteGroup"
         command "addToGroup"
 
+
         
     command "groupFunctions", [[name:"Relax Sound", type:"ENUM", description:"Select Nature Sound", constraints:["getGroup","getGroups","addToGroup","createGroup","renameGroup","deleteGroup"]]] 
-    command "setLightColor", [[name:"Light Color", type: "ENUM", constraints: ["Blue","Green","Red","Purple","Yellow"] ] ]
-    command "setLightLevel", [[name:"Light Level", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"] ] ]
-    command "setLightSwitch", [[name:"Light Switch", type: "ENUM", constraints: ["On","Off"] ] ]
+    command "lightColor", [[name:"Light Color", type: "ENUM", constraints: ["Blue","Green","Red","Purple","White","Yellow"] ] ]
+    command "lightLevel", [[name:"Light Level", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"] ] ]
+    command "lightSwitch", [[name:"Light Switch", type: "ENUM", constraints: ["On","Off"] ] ]
     command "setPower", [[name:"Power On/Off", type: "ENUM", constraints: ["On","Off"] ] ]
     command "setSoundMode", [[name:"Sound Mode", type: "ENUM", constraints: ["Relax","Sleep"] ] ]
     command "setVolume", [[name:"Volume", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"] ] ]
@@ -84,9 +85,9 @@ metadata {
         attribute "SoundMode", "string"
         attribute "RelaxSound", "string"
         //attribute "RelaxVolume", "integer"
-        attribute "LightStatus", "string"
-        attribute "LightLevel", "integer"
-        attribute "LightColor", "string"
+        attribute "Light_Switch", "string"
+        attribute "Light_Level", "integer"
+        attribute "Light_Color", "string"
         attribute "SoundScheduled", "integer"
         //attribute "LightScheduled", "integer"
         //attribute "SoundOn", "string"
@@ -485,7 +486,223 @@ void setSoundMode(newMode) {
         sendEvent(name: "switch", value: "off")
 	break ;
 	}
+}
+////Set Light Switch
+void lightSwitch(newLight) {
 
+	switch (newLight) {
+	case "Off":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightStatus\\":\\"0\\"}"}]}}'
+                  ]
+    
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Switch", value: "off")
+    break ;
+	case "On":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightStatus\\":\\"1\\"}"}]}}'
+                  ]
+    
+        asynchttpPost('allPurposeFlour', postParams)
+        sendEvent(name: "Light_Switch", value: "on")
+	break ;
+	}
+}
+////Light Level
+void lightLevel(newLight) {
+	switch (newLight) {
+        case "1":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"1\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "1")
+		break ;
+        case "2":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"2\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "2")
+		break ;
+        case "3":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"3\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "3")
+		break ;
+        case "4":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"4\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "4")
+		break ;
+        case "5":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"5\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "5")
+		break ;
+        case "6":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"6\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "6")
+		break ;
+        case "7":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"7\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "7")
+		break ;
+        case "8":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"8\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "8")
+		break ;
+
+	case "9":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"9\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "9")
+		break ;
+    case "10":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightLevel\\":\\"10\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Level", value: "10")
+		break ;
+	}
+}
+////Light Color
+void lightColor(newColor) {
+	switch (newColor) {
+        case "Blue":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightColor\\":\\"0000FF\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Color", value: "Blue")
+		break ;
+        case "Green":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightColor\\":\\"00FF00\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Color", value: "Green")
+		break ;
+        case "Purple":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightColor\\":\\"800080\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Color", value: "Purple")
+		break ;
+        case "Red":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightColor\\":\\"FF0000\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Color", value: "Red")
+		break ;
+        case "White":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightColor\\":\\"ffffff\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Color", value: "White")
+		break ;
+        case "Yellow":
+        def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"lightColor\\":\\"FFFF00\\"}"}]}}'
+                  ]
+            asynchttpPost('allPurposeFlour', postParams)
+            sendEvent(name: "Light_Color", value: "Yellow")
+		break ;
+	}
 }
 ////Volume
 void setVolume(newVol) {
@@ -573,7 +790,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"8\\",\\"sleepVolume\\":\\"8\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxVolume\\":\\"8\\",\\"sleepVolume\\":\\"8\\"}"}]}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "8")
@@ -585,7 +802,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"9\\",\\"sleepVolume\\":\\"9\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxVolume\\":\\"9\\",\\"sleepVolume\\":\\"9\\"}"}]}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "9")
@@ -596,7 +813,7 @@ void setVolume(newVol) {
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"10\\",\\"sleepVolume\\":\\"10\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxVolume\\":\\"10\\",\\"sleepVolume\\":\\"10\\"}"}]}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "Volume", value: "10")
@@ -609,55 +826,55 @@ void setRelaxSound(newRelaxSound) {
  	switch (newRelaxSound){ 	
 	case "Crickets":
     def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"520\\"}"}}'
+            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],  
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"520\\"}"}]}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "RelaxSound", value: "Crickets")
 	break ;
 	case "Lakeshore":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"510\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"510\\"}"}]}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "RelaxSound", value: "Lakeshore")
         	break ;
     case "Loons":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"530\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"530\\"}"}]}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "RelaxSound", value: "Loons")
         	break ;
     case "Whales":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"540\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"540\\"}"}]}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "RelaxSound", value: "Whales")
 			break ;
     case "Rain":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"550\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"550\\"}"}]}}'
                   ]
             asynchttpPost('allPurposeFlour', postParams)
             sendEvent(name: "RelaxSound", value: "Rain")
@@ -668,55 +885,55 @@ void setRelaxSound(newRelaxSound) {
 }
 def Lakeshore() {
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"510\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"510\\"}"}]}}'
                   ]
     asynchttpPost('allPurposeFlour', postParams)
     sendEvent(name: "RelaxSound", value: "Lakeshore")
 }
 def Crickets() {
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"520\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"520\\"}"}]}}'
                   ]
     asynchttpPost('allPurposeFlour', postParams)
     sendEvent(name: "RelaxSound", value: "Crickets")
 }
 def Loons() {
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"530\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"530\\"}"}]}}'
                   ]
     asynchttpPost('allPurposeFlour', postParams)
     sendEvent(name: "RelaxSound", value: "Loons")
 }
 def Whales() {
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"540\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"540\\"}"}]}}'
                   ]
     asynchttpPost('allPurposeFlour', postParams)
     sendEvent(name: "RelaxSound", value: "Whales")
 }
 def Rain() {
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"550\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"relaxSound\\":\\"550\\"}"}]}}'
                   ]
     asynchttpPost('allPurposeFlour', postParams)
     sendEvent(name: "RelaxSound", value: "Rain")
@@ -727,11 +944,11 @@ void setNeutralSleepSound(newNeutralSleepSound) {
 
 	case "General Bedroom":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"210\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"210\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -739,11 +956,11 @@ void setNeutralSleepSound(newNeutralSleepSound) {
         	break ;
     case "Kids Room":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"215\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"215\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -751,11 +968,11 @@ void setNeutralSleepSound(newNeutralSleepSound) {
 			break ;
     case "Snoring":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"220\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"220\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -763,11 +980,11 @@ void setNeutralSleepSound(newNeutralSleepSound) {
 	break ;
     case "Tinnitus":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"225\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"225\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -775,11 +992,11 @@ void setNeutralSleepSound(newNeutralSleepSound) {
 		break ;
     case "Hospital Room":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"230\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"230\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -794,11 +1011,11 @@ void setReflectiveSleepSound(newReflectiveSleepSound) {
  	switch (newReflectiveSleepSound){ 
     case "General Bedroom":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"310\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"310\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -806,11 +1023,11 @@ void setReflectiveSleepSound(newReflectiveSleepSound) {
     break ;
 	case "Kids Room":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"315\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"315\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -818,11 +1035,11 @@ void setReflectiveSleepSound(newReflectiveSleepSound) {
 	break ;
     case "Snoring":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"320\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"320\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -830,11 +1047,11 @@ void setReflectiveSleepSound(newReflectiveSleepSound) {
     break ;
     case "Tinnitus":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"325\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"325\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -842,11 +1059,11 @@ void setReflectiveSleepSound(newReflectiveSleepSound) {
 			break ;
     case "Hospital Room":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"330\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"330\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -862,11 +1079,11 @@ void setAbsorptiveSleepSound(newAbsorptiveSleepSound) {
  	switch (newAbsorptiveSleepSound){ 
     case "General Bedroom":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"410\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"410\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -874,11 +1091,11 @@ void setAbsorptiveSleepSound(newAbsorptiveSleepSound) {
     break ;
 	case "Kids Room":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"415\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"415\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -886,11 +1103,11 @@ void setAbsorptiveSleepSound(newAbsorptiveSleepSound) {
 	break ;
     case "Snoring":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"420\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"420\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -898,11 +1115,11 @@ void setAbsorptiveSleepSound(newAbsorptiveSleepSound) {
     break ;
     case "Tinnitus":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"425\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"425\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
@@ -910,11 +1127,11 @@ void setAbsorptiveSleepSound(newAbsorptiveSleepSound) {
 			break ;
     case "Hospital Room":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/289261179/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/groups/${groupKey}/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"sleepSound\\":\\"430\\"}"}}'
+            body: '{"datapoints": {"datapoint": [{"property_name": "cmd", "value": "{\\"sleepSound\\":\\"430\\"}"}]}}'
                  ]
     
             asynchttpPost('allPurposeFlour', postParams)
