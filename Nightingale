@@ -16,9 +16,9 @@ import groovy.json.JsonSlurper
 
 
 preferences {
-        input "token", "text", title: "Token", required: true
-        input "device_key", "string", title: "Device Key", required: true
-        input "name", "text", title: "Device Name", required: true
+        input "username", "text", title: "User Name", required: true
+        input "password", "string", title: "Password", required: true
+        input "deviceKey", "text", title: "Device Key", required: true
 		}
 
 metadata {
@@ -851,5 +851,5 @@ void setAbsorptiveSleepSound(newAbsorptiveSleepSound) {
 }
 def installed() {
     refresh
-    state.groupKey = groupKey
+    state.deviceKey = deviceKey
 }
