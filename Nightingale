@@ -22,16 +22,13 @@ preferences {
 		}
 
 metadata {
-	definition (name: "Nightingale", namespace: "ajkr", author: "Andy Kroll") {
+	definition (name: "Nightingale", namespace: "absolutelyNothing", author: "absolutelyNothing") {
         capability "Switch"
         capability "Battery"
         capability "Refresh"
-        capability "Polling"
-        capability "Health Check"
         capability "Switch Level"
 
-        
-        command "pfuck2"
+
         command "Crickets"
         command "Loons"
         command "Rain"
@@ -39,89 +36,64 @@ metadata {
         command "Whales"
         command "Toggle Sound Mode"
         command "refreshDevices"
-        command "pfuck"
-        command "volume8"
+        command "getGroup"
+        command "getGroups"
+        command "createGroup"
+        command "renameGroup"
+        command "deleteGroup"
+        command "addToGroup"
+	command "groupFunctions", [[name:"Relax Sound", type:"ENUM", description:"Select Nature Sound", constraints:["getGroup","getGroups","addToGroup","createGroup","renameGroup","deleteGroup"]]] 
+        command "setLightColor", [[name:"Light Color", type: "ENUM", constraints: ["Blue","Green","Red","Purple","Yellow"] ] ]
+        command "setLightLevel", [[name:"Light Level", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"] ] ]
+        command "setLightSwitch", [[name:"Light Switch", type: "ENUM", constraints: ["On","Off"] ] ]
+        command "setPower", [[name:"Power On/Off", type: "ENUM", constraints: ["On","Off"] ] ]
+        command "setSoundMode", [[name:"Sound Mode", type: "ENUM", constraints: ["Relax","Sleep"] ] ]
+        command "setVolume", [[name:"Volume", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"] ] ]
+        command "setNeutralSleepSound", [[name:"Neutral Sleep Sound", type: "ENUM", constraints: ["General Bedroom","Kids Room","Snoring","Tinnitus","Hospital Room"] ] ]
+        command "setReflectiveSleepSound", [[name:"Reflective Sleep Sound", type: "ENUM", constraints: ["General Bedroom","Kids Room","Snoring","Tinnitus","Hospital Room"] ] ]
+        command "setAbsorptiveSleepSound", [[name:"Absorptive Sleep Sound", type: "ENUM", constraints: ["General Bedroom","Kids Room","Snoring","Tinnitus","Hospital Room"] ] ]
+	command "setRelaxSound", [[name:"Relax Sound", type:"ENUM", description:"Select Nature Sound", constraints:["Crickets","Lakeshore","Loons","Rain","Whales"]]]
 
 
         
-        attribute "SoundStatus", "string"     
+        
+
+	
+        
+        //attribute "SoundStatus", "string"     
         attribute "SoundMute", "string"
-        attribute "SleepVolume", "integer"
-        attribute "SleepSound", "integer"
+        //attribute "SleepVolume", "integer"
+        attribute "SleepSound", "string"
         attribute "PageVolume", "integer"
         attribute "Balance", "integer"
         attribute "SoundMode", "string"
-        attribute "RelaxSound", "integer"
-        attribute "RelaxVolume", "integer"
+        attribute "RelaxSound", "string"
+        //attribute "RelaxVolume", "integer"
         attribute "LightStatus", "string"
         attribute "LightLevel", "integer"
         attribute "LightColor", "string"
         attribute "SoundScheduled", "integer"
-        attribute "LightScheduled", "integer"
-        attribute "SoundOn", "string"
-        attribute "SoundOff", "string"
-        attribute "LightOn", "string"
-        attribute "LightOff", "string"
+        //attribute "LightScheduled", "integer"
+        //attribute "SoundOn", "string"
+        //attribute "SoundOff", "string"
+        //attribute "LightOn", "string"
+        //attribute "LightOff", "string"
         attribute "Ramp", "integer"
         attribute "DisableButton", "integer"
         attribute "RoomName", "string"
-        attribute "Dwelling", "string"   
-
-        
-
-	}
-
-	simulator {
-		status "on": "box_status: 1"
-		status "off": "box_status: 0"
-		status "occupied": "occupancy: 1"
-		status "unoccupied": "occupancy: 0"
-
+        attribute "Dwelling", "string"  
+        attribute "Volume", "integer"
 
 	}
 
-
 }
 
 
-
-
-
-def pfuck() {
-
-    def datapoint = '{"datapoint": {"value": "{\\"soundStatus\\":\\"0\\"}"'
-
-    def body2 = ['{"soundStatus":"0"}']
-    def body3 = ['{"datapoint": {"value" : "{\"soundStatus\":\"1\",\"soundMute\":\"0\",\"sleepVolume\":\"9\",\"sleepSound\":\"210\",\"pageVol\":\"5\",\"balance\":\"0\",\"soundMode\":\"1\",\"relaxSound\":\"520\",\"relaxVolume\":\"7\",\"lightStatus\":\"0\",\"lightLevel\":\"10\",\"lightColor\":\"ffff00\",\"soundScheduled\":\"1\",\"lightScheduled\":\"0\",\"soundOn\":\"03:00\",\"soundOff\":\"12:00\",\"lightOn\":\"22:00\",\"lightOff\":\"06:00\",\"ramp\":\"60\",\"disableBtn\":\"0\",\"roomName\":\"Bedroom\",\"dwelling\":\"Home\"}"}}'] 
-    def postParams = [
-        uri: "https://cuntface.requestcatcher.com/",
-
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-        body: '{"datapoint": {"value": "{\\"soundStatus\\":\\"0\\"}"}}'
-                 ]
-    
-    asynchttpPost('allPurposeFlour', postParams, [datapoint: '"datapoint": {"value" : "{\"relaxVolume\":\"7\"}"}}'])
-}
-def pfuck2() {
-    def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W001422480/properties",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"]
-]
-    
-    asynchttpGet('getDevice', postParams, [dataitem1: "datavalue1"])
-}
 def allPurposeFlour(response, data) {
         log.debug "status of post call is: ${response.status}"
         log.info "${response.data}"
 
 }
-
-                
-
-
 def getDevice(response, data) {
       log.debug "status of post call is: ${response.status}"
         log.info "${response.data}"
@@ -130,7 +102,7 @@ def getDevice(response, data) {
     
 
 
-    def soundStatus = "${deviceProperties.soundStatus}"
+    def soundStatus = "${deviceProperties.soundStatus == 0 ? "Off" : reportValue == 1 ? "On": "error"}"
         sendEvent(name: "SoundStatus", value: soundStatus)
     
     def soundMute = "${deviceProperties.soundMute}"
@@ -139,7 +111,7 @@ def getDevice(response, data) {
     def sleepVolume = "${deviceProperties.sleepVolume}"
         sendEvent(name: "SleepVolume", value: sleepVolume)
     
-    def sleepSound = "${deviceProperties.sleepSound}"
+    def sleepSound = "${deviceProperties.sleepSound == 210 ? "General Room (Neutral)" : reportValue == 215 ? "Kids Room (Neutral)" : reportValue == 220 ? "Snoring Blanket (Neutral)" : reportValue == 225 ? "Tinnitus (Neutral)" : reportValue == 230 ? "Hospital Room (Neutral)" : reportValue == 310 ? "General Room (Reflective)": reportValue == 315 ? "Kids Room (Reflective)": reportValue == 320 ? "Snoring (Reflective)" : reportValue == 325 ? "Tinnitus (Reflective)" : reportValue == 330 ? "Hospital Room (Reflective)" : reportValue == 410 ? "General Room (Absorptive)": reportValue == 415 ? "Kids Room (Absorptive)": reportValue == 420 ? "Snoring (Absorptive)" : reportValue == 425 ? "Tinnitus (Absorptive)": reportValue == 430 ? "Hospital Room ((Absorptive)" : "error"}"
         sendEvent(name: "SleepSound", value: sleepSound)
     
     def pageVol = "${deviceProperties.pageVol}"
@@ -148,16 +120,16 @@ def getDevice(response, data) {
     def balance = "${deviceProperties.balance}"
         sendEvent(name: "Balance", value: balance)
     
-    def soundMode = "${deviceProperties.soundMode}"
+    def soundMode = "${deviceProperties.soundMode == 0 ? "Sleep" : reportValue == 1 ? "Relax": "error"}"
         sendEvent(name: "SoundMode", value: soundMode)
     
     def relaxSound = "${deviceProperties.relaxSound == 510 ? "Lakeshore" : reportValue == 520 ? "Crickets" : reportValue == 530 ? "Loons" : reportValue == 540 ? "Whales" : reportValue == 550 ? "Rain" : "error"}"
         sendEvent(name: "RelaxSound", value: relaxSound)
     
     def relaxVolume = "${deviceProperties.relaxVolume}"
-        sendEvent(name: "RelaxVolume", value: relaxVolume)
+        sendEvent(name: "relaxVolume", value: relaxVolume)
     
-    def lightStatus = "${deviceProperties.lightStatus}"
+    def lightStatus = "${deviceProperties.lightStatus == 0 ? "Off" : reportValue == 1 ? "On": "error"}"
         sendEvent(name: "LightStatus", value: lightStatus)
     
     def lightLevel = "${deviceProperties.lightLevel}"
@@ -169,8 +141,8 @@ def getDevice(response, data) {
     def soundScheduled = "${deviceProperties.soundScheduled}"
         sendEvent(name: "SoundScheduled", value: soundScheduled)
     
-    def lightScheduled = "${deviceProperties.lightScheduled}"
-        sendEvent(name: "LightScheduled", value: lightScheduled)
+    //def lightScheduled = "${deviceProperties.lightScheduled}"
+       // sendEvent(name: "LightScheduled", value: lightScheduled)
     
     def soundOn = "${deviceProperties.soundOn}"
         sendEvent(name: "SoundOn", value: soundOn)
@@ -178,11 +150,11 @@ def getDevice(response, data) {
     def soundOff = "${deviceProperties.soundOff}"
         sendEvent(name: "SoundOff", value: soundOff)
     
-    def lightOn = "${deviceProperties.lightOn}"
-        sendEvent(name: "LightOn", value: lightOn)
+    //def lightOn = "${deviceProperties.lightOn}"
+        //sendEvent(name: "LightOn", value: lightOn)
     
-    def lightOff = "${deviceProperties.soundOff}"
-        sendEvent(name: "LightOff", value: lightOff)
+    //def lightOff = "${deviceProperties.soundOff}"
+        //sendEvent(name: "LightOff", value: lightOff)
         
     def ramp = "${deviceProperties.ramp}"
         sendEvent(name: "Ramp", value: ramp)
