@@ -170,83 +170,13 @@ def getDevice(response, data) {
 
  }
 
-def volume8() {
-        def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/${deviceKey}/datapoints.json",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxVolume\\":\\"8\\",\\"sleepVolume\\":\\"8\\"}"}}'
-                  ]
-    asynchttpPost('allPurposeFlour', postParams)
-    sendEvent(name: "RelaxSound", value: "Lakeshore")
-}
-
-
-def Lakeshore() {
-        def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/${deviceKey}/datapoints.json",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"510\\"}"}}'
-                  ]
-    asynchttpPost('allPurposeFlour', postParams)
-    sendEvent(name: "RelaxSound", value: "Lakeshore")
-}
-def Crickets() {
-        def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/${deviceKey}/datapoints.json",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"520\\"}"}}'
-                  ]
-    asynchttpPost('allPurposeFlour', postParams)
-    sendEvent(name: "RelaxSound", value: "Crickets")
-}
-def Loons() {
-        def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/${deviceKey}/datapoints.json",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"530\\"}"}}'
-                  ]
-    asynchttpPost('allPurposeFlour', postParams)
-    sendEvent(name: "RelaxSound", value: "Loons")
-}
-def Whales() {
-        def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/${deviceKey}/datapoints.json",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"540\\"}"}}'
-                  ]
-    asynchttpPost('allPurposeFlour', postParams)
-    sendEvent(name: "RelaxSound", value: "Whales")
-}
-def Rain() {
-        def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/${deviceKey}/datapoints.json",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Nightingale/1.4 (iPhone; iOS 14.4; Scale/3.00)"],
-            body: '{"datapoint": {"value": "{\\"relaxSound\\":\\"550\\"}"}}'
-                  ]
-    asynchttpPost('allPurposeFlour', postParams)
-    sendEvent(name: "RelaxSound", value: "Rain")
-}
-
-
 def getAccessTokens() {
 
     def postParams = [
         uri: "https://user-field.aylanetworks.com/users/sign_in",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
-            body: '{"user": {"email": "andyjarmijo@gmail.com","password": "Diseased1!","application" :{"app_id": "ng-ios-id","app_secret": "ng-ios-4jbbS9drkYCdk3x4uviG9Mduhrs"}}'
+            body: '{"user": {"email": "${username}","password": "${password}","application" :{"app_id": "ng-ios-id","app_secret": "ng-ios-4jbbS9drkYCdk3x4uviG9Mduhrs"}}'
            
                   ]
     
