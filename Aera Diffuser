@@ -17,32 +17,36 @@ import groovy.json.JsonOutput
 
 
 preferences {
-        //input "token", "text", title: "Token", required: true
-        //input "device_key", "string", title: "Device Key", required: true
-        //input "name", "text", title: "Device Name", required: true
+        input "username", "string", title: "Username", required: true
+        input "password", "string", title: "Password", required: true
+        input "deviceDSN", "string", title: "Device DSN", required: false
 		}
 
 metadata {
 	definition (name: "Aera Diffuser", namespace: "absolutelyNothing", author: "absolutelyNothing") {
         capability "Switch"
-        capability "Battery"
         capability "Refresh"
-        capability "Polling"
-        capability "Health Check"
-        capability "Switch Level"
+        capability "Actuator"
 
+        command "refreshProperties"
+        command "refreshDevice"
         command "refreshDevices"
+        command "refreshToken"
+        command "getAccessTokens"
+        command "login"
+
         command "setPower", [[name:"Power On/Off", type: "ENUM", constraints: ["On","Off"] ] ]
-        command "setSoundMode", [[name:"Sound Mode", type: "ENUM", constraints: ["Relax","Sleep"] ] ]
         command "setIntensity", [[name:"Volume", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"] ] ]
-        command "setIntensityManual", [[name:"Volume", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"] ] ]
+
+        //command "setIntensityManual", [[name:"Volume", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"] ] ]
 
         attribute "cartridgePresence", "string"
         attribute "Scent", "string"
         attribute "Usage", "integer"
-        attribute "FW.Version", "integer"
+        attribute "Firmware", "string"
         attribute "Intensity", "string"
-        attribute "Intensity.Manual", "string"
+        attribute "Authorization", "Date"
+        attribute "Cartridge_Usage", "string"
 	}
 
 }
@@ -64,76 +68,46 @@ def getDevice(response, data) {
     def cartridge_present = "${deviceProperties.cartridge_present == 0 ? "No" : reportValue == 1 ? "Yes": "error"}"
         sendEvent(name: "cartridgePresence", value: cartridge_present)
     
-    def cartridge_usage = "${deviceProperties.cartridge_usage}"
-        sendEvent(name: "Usage", value: cartridge_usage)
-    
-    def device_fw_version = "${deviceProperties.device_fw_version}"
-        sendEvent(name: "FW.Version", value: device_fw_version)
 
-    def fragrance_name = "${deviceProperties.fragrance_name}"
-        sendEvent(name: "Scent", value: fragrance_name)
-   
-    def intensity_state = "${deviceProperties.intensity_state}"
-        sendEvent(name: "Intensity", value: intensity_state)
-    
-    def power_state = "${deviceProperties.soundMode == 0 ? "Off" : reportValue == 1 ? "On": "error"}"
-        sendEvent(name: "switch", value: power_state)
-
-    def set_intensity_manual = "${deviceProperties.set_intensity_manual}"
-        sendEvent(name: "Intensity.Manual", value: set_intensity_manual)
 
  }
 
 
+def installed() {
 
+    refresh()
+    unschedule()
+    state.deviceDSN = deviceDSN
+    state.email= "email"
+    state.password = "password"
 
+}
 
-
-
-
+////Refresh
 def refresh() {
-
-    def postParams = [
-        uri: "https://user-field.aylanetworks.com/users/sign_in",
-		    requestContentType: 'application/json',
-		    contentType: 'application/json',
-            body: '{"user": {"email": "andyjarmijo@gmail.com","password": "Diseased1!","application" :{"app_id": "ios-id-id","app_secret": "ios-id-7h0tftiMcjIP-a0URU-pwxFbi4I"}}'
-           
-                  ]
-    
-    asynchttpPost('signIn', postParams, [dataitem1: "datavalue1"])
-    
-//schedule the rescheduler to schedule refresh ;)
-  if ((state.polling?.rescheduler?:0) + 86400 < now()) {
-    log.info "Scheduling Auto Rescheduler.."
-    runEvery90Minutes(runRefresh)    
-    state.polling?.rescheduler = now()
-  }
-}
-// Schedule refresh
-def runRefresh(evt) {
-  log.info "Last refresh was "  + ((now() - state.polling?.last?:0)/60000) + " minutes ago"
-  // Reschedule if  didn't update for more than 5 minutes plus specified polling
-  if ((((state.polling?.last?:0) + (((settings.polling?.toInteger()?:1>0)?:1) * 60000) + 300000) < now()) && canSchedule()) {
-    log.info "Scheduling Auto Refresh.."
-    schedule("* */" + ((settings.polling?.toInteger()?:1>0)?:1) + " * * * ?", refresh)
-  }
-    
-  // Force Refresh NOWWW!!!!
-  refresh()
-    
-  //Update rescheduler's last run
-  if (!evt) state.polling?.rescheduler = now()
+    schedule("0 0 2/23 ? * * *", refresh)
+    Map postParams = [ uri: "https://user-field.aylanetworks.com/users/refresh_token", requestContentType: "application/json", contentType: "application/json", body: new groovy.json.JsonOutput().toJson( [ user: [ refresh_token: state.refreshToken ] ] ) ]
+    asynchttpPost('signIn', postParams)
+    //log.debug("postParams: ${postParams}")
 }
 
+////Email Login
+def login() {
 
+Map postParams = [ uri: "https://fxn.requestcatcher.com/", requestContentType: "application/json", contentType: "application/json", body: new groovy.json.JsonOutput().toJson( [ user: [ email: username, password: password, application:[app_id: "ios-id", app_secret: "ios-id-7h0tftiMcjIP-a0URU-pwxFbi4I"] ] ] ) ]
 
-
-
-////Get Access Token
+    asynchttpPost('signIn', postParams)
+}
+////Email Login
 def getAccessTokens() {
 
-    def postParams = [
+Map postParams = [ uri: "https://fxn.requestcatcher.com/", requestContentType: "application/json", contentType: "application/json", body: new groovy.json.JsonOutput().toJson( [ user: [ email: email, password: password ] ] ) ]
+
+    asynchttpPost('signIn', postParams)
+}
+def getAccessTokens2() {
+def postParams = [
+
         uri: "https://user-field.aylanetworks.com/users/sign_in",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
@@ -141,7 +115,7 @@ def getAccessTokens() {
            
                   ]
     
-    asynchttpPost('signIn', postParams, [dataitem1: "datavalue1"])
+    asynchttpPost('signIn', postParams)
 }
 //Sign In
 def signIn(response, data) {
@@ -153,68 +127,96 @@ def signIn(response, data) {
                     state.accessToken = response.json.access_token
                     state.session = now() + 86400
             }
-                
-
-        log.info "Acess Token being ${state.accessToken}"
-        log.info "Refresh Token being ${state.refreshToken}"
-        log.info "Expiration being ${state.session}"
+        //log.info "Acess Token is ${state.accessToken}"
+        //log.info "Refresh Token is ${state.refreshToken}"
+        //log.info "Expiration is ${state.session}"
+        //log.info "Aera Credentials Refreshed"
+        sendEvent(name: "Authorization", value: new Date().format("MMM dd yyyy hh:mm a", location.timeZone), descriptionText: "Aera Credentials Refreshed.")
     
 }
 }
+
 ////Refresh Devices
 def refreshDevices() {
-
     def postParams = [
         uri: "https://ads-field.aylanetworks.com/apiv1/devices",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"]
-
-           
                   ]
-    
-    asynchttpGet('getDevices', postParams, [Authorization: "Bearer ${state.accessToken}"])
+    asynchttpGet('allPurposeFlour', postParams)
 }
 def getDevices(response, data) {
-        log.debug "status of post call is: ${response.status}"
+        log.trace "status of post call is: ${response.status}"
         log.info "${response.data}"
+        log.info "${response.json.find {it.property.name == "device"}.dsn}"
 
 }
-////Power Modes
-def off() {
-        def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/278275017/datapoints.json",
+//refresh properties
+void refreshProperties() {
+    def postParams = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
-            headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
+            headers: ["Authorization": "Bearer ${state.accessToken}"]
+                  ]
+    asynchttpGet('getProperties', postParams)
+}
+def getProperties(response, data) {
+    if(response.status == 200){
+    log.info "${response.json.find {it.property.name == "cartridge_present"}.property.value}"
+        
+    def cartridge_present = "${response.json.find {it.property.name == "cartridge_present"}.property.value == 1 ? "Yes" : "No"}"
+        sendEvent(name: "cartridgePresence", value: cartridge_present)
+        
+    def cartridge_usage = "${response.json.find {it.property.name == "cartridge_usage"}.property.value}"
+        sendEvent(name: "Usage", value: cartridge_usage)
+
+    def device_fw_version = "${response.json.find {it.property.name == "device_fw_version"}.property.value}"
+        sendEvent(name: "Firmware", value: device_fw_version)
+
+    def fragrance_name = "${response.json.find {it.property.name == "fragrance_name"}.property.value}"
+        sendEvent(name: "Scent", value: fragrance_name)
+   
+    def intensity_state = "${response.json.find {it.property.name == "intensity_state"}.property.value}"
+        sendEvent(name: "Intensity", value: intensity_state)
+    
+    def power_state = "${response.json.find {it.property.name == "power_state"}.property.value == 1 ? "On" : "Off"}"
+        sendEvent(name: "switch", value: power_state)
+
+    //def set_intensity_manual = "${response.json.find {it.property.name == "set_intensity_manual"}.property.value}"
+        //sendEvent(name: "Intensity.Manual", value: set_intensity_manual)
+    }
+} 
+
+////Power Modes
+def off() {
+    def postParams = [
+            uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_power_state/datapoints",
+		    requestContentType: 'application/json',
+		    contentType: 'application/json',
+            headers: ["Authorization": "Bearer ${state.accessToken}"],
             body: '{"datapoint": {"value": 0}}'
                   ]
-    
     asynchttpPost('allPurposeFlour', postParams)
-    sendEvent(name: "switch", value: "off")
-
-
+    sendEvent(name: "switch", value: "Off")
 }          
 def on() {
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/properties/278275017/datapoints.json",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_power_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
             body: '{"datapoint": {"value": 1}}'
                   ]
-    
             asynchttpPost('allPurposeFlour', postParams)
-            sendEvent(name: "switch", value: "on")
-
-
+            sendEvent(name: "switch", value: "On")
 }
 void setPower(newPower) {
-
 	switch (newPower) {
 	case "On":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_power_state/datapoints",
+            uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_power_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -222,11 +224,11 @@ void setPower(newPower) {
                   ]
     
             asynchttpPost('allPurposeFlour', postParams)
-            sendEvent(name: "switch", value: "on")
+            sendEvent(name: "switch", value: "On")
     break ;
 	case "Off":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_power_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_power_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -234,18 +236,17 @@ void setPower(newPower) {
                   ]
     
         asynchttpPost('allPurposeFlour', postParams)
-        sendEvent(name: "switch", value: "off")
+        sendEvent(name: "switch", value: "Off")
 	break ;
 	}
 
 }
-
 ////Intensity
 void setIntensity(newInt) {
 	switch (newInt) {
         case "1":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -256,7 +257,7 @@ void setIntensity(newInt) {
 		break ;
         case "2":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -267,7 +268,7 @@ void setIntensity(newInt) {
 		break ;
         case "3":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -278,7 +279,7 @@ void setIntensity(newInt) {
 		break ;
         case "4":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -289,7 +290,7 @@ void setIntensity(newInt) {
 		break ;
         case "5":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -300,7 +301,7 @@ void setIntensity(newInt) {
 		break ;
         case "6":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -311,7 +312,7 @@ void setIntensity(newInt) {
 		break ;
         case "7":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -322,7 +323,7 @@ void setIntensity(newInt) {
 		break ;
         case "8":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -334,7 +335,7 @@ void setIntensity(newInt) {
 
 	case "9":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/intensity_state/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/intensity_state/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -345,7 +346,7 @@ void setIntensity(newInt) {
 		break ;
     case "10":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -362,7 +363,7 @@ void setIntensityManual(newManInt) {
 	switch (newManInt) {
         case "1":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -373,7 +374,7 @@ void setIntensityManual(newManInt) {
 		break ;
         case "2":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -384,7 +385,7 @@ void setIntensityManual(newManInt) {
 		break ;
         case "3":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -395,7 +396,7 @@ void setIntensityManual(newManInt) {
 		break ;
         case "4":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             body: '{"datapoint": {"value": 4}}'
@@ -405,7 +406,7 @@ void setIntensityManual(newManInt) {
 		break ;
         case "5":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -416,7 +417,7 @@ void setIntensityManual(newManInt) {
 		break ;
         case "6":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -427,7 +428,7 @@ void setIntensityManual(newManInt) {
 		break ;
         case "7":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -438,7 +439,7 @@ void setIntensityManual(newManInt) {
 		break ;
         case "8":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -450,7 +451,7 @@ void setIntensityManual(newManInt) {
 
 	case "9":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
@@ -461,7 +462,7 @@ void setIntensityManual(newManInt) {
 		break ;
     case "10":
         def postParams = [
-        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/AC000W010405959/properties/set_intensity_manual/datapoints",
+        uri: "https://ads-field.aylanetworks.com/apiv1/dsns/${deviceDSN}/properties/set_intensity_manual/datapoints",
 		    requestContentType: 'application/json',
 		    contentType: 'application/json',
             headers: ["Authorization": "Bearer ${state.accessToken}","User-Agent": "Prolitec/1.5.4 (iPhone; iOS 14.4; Scale/3.00)"],
