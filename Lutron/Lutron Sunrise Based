@@ -1,0 +1,1211 @@
+/**
+ *  Partly based on source originally copyright 2018-2019 SmartThings
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License. You may obtain a copy of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *  for the specific language governing permissions and limitations under the License.
+ *
+ */
+
+import com.hubitat.zigbee.DataType
+
+
+preferences {
+
+    
+    input(name: "editSchedules", type: "bool", title: "Show Circadian Schedules", defaultValue: false, submitOnChange: true, displayDuringSetup: true)
+    input(name: "extraFeatures", type: "bool", title: "Extra Settings", defaultValue: false, submitOnChange: true, displayDuringSetup: true)
+    
+if(extraFeatures){
+    input(name: "enableCircadian", type: "bool", title: "Enable Circadian Transitions", defaultValue: true, submitOnChange: true)
+    input(name: "enableMotion", type: "bool", title: "Enable Motion Timeouts", defaultValue: true, submitOnChange: true)
+    input(name: "enableLevel", type: "bool", title: "Enable Level", defaultValue: true, submitOnChange: true)
+    input(name: "enableColor", type: "bool", title: "Enable Color", defaultValue: true, submitOnChange: true)
+    input(name: "logs", type: "bool", title: "Log Options", defaultValue: false, submitOnChange: true)
+    input(name: "autoOffDuration", type: "enum", title: "Auto turn off", defaultValue: 0, required: true, multiple: false, options:[0:"Disabled", 1:"30 Minutes", 2:"45 Minutes", 5:"1 Hour"]) 
+    input name: "levelChangeRate", type: "enum", title: '"Start level change" rate', options:
+         [["slow":"Slow"],["medium":"Medium"],["fast":"Fast (default)"]], defaultValue: "fast"  
+
+}
+if(logs){
+        input(name: "debug", type: "bool", title: "Enable debug logging", defaultValue: false, submitOnChange: true)
+        input(name: "trace", type: "bool", title: "Enable trace logging", defaultValue: false, submitOnChange: true)
+    }
+
+
+if(editSchedules){
+
+    input(name: "physicalSchedules", type: "bool", title: "Show Pyhsical Schedules", defaultValue: false, submitOnChange: true)
+    input(name: "motionSchedules", type: "bool", title: "Show Motion Presets", defaultValue: false, submitOnChange: true) 
+    input(name: "transitionSchedules", type: "bool", title: "Show Transitions",  defaultValue: false, submitOnChange: true)  
+  
+    if (physicalSchedules) input(name: "schedule1", type: "bool", title: "Show/Edit Schedule 1", defaultValue: false, submitOnChange: true)
+    if (physicalSchedules) input(name: "schedule2", type: "bool", title: "Show/Edit Schedule 2", defaultValue: false, submitOnChange: true)
+    if (physicalSchedules) input(name: "schedule3", type: "bool", title: "Show/Edit Schedule 3", defaultValue: false, submitOnChange: true)
+    if (physicalSchedules) input(name: "schedule4", type: "bool", title: "Show/Edit Schedule 4", defaultValue: false, submitOnChange: true)
+    if (physicalSchedules) input(name: "schedule5", type: "bool", title: "Show/Edit Schedule 5", defaultValue: false, submitOnChange: true)
+    if (physicalSchedules) input(name: "schedule6", type: "bool", title: "Show/Edit Schedule 6", defaultValue: false, submitOnChange: true)
+}
+if(schedule1) {
+    input(name: "schedule1scene", type: "string", title: "Schedule 1 Scene", defaultValue: "Energize")
+    input(name: "schedule1start", type: "string", title: "Schedule 1 Start", defaultValue: "0:30", submitOnChange: true)
+    input(name: "schedule1colorTemp", type: "int", title: "Schedule 1 Color Temp", defaultValue: 6410,  unit:  "K")
+    input(name: "schedule1level", type: "int", title: "Schedule 1 Level",  defaultValue: 100) 
+    input(name: "schedule1timer", type: "int", title: "Occupancy Timeout", description: "Number of Seconds until Unoccupied", defaultValue: 3600)
+        if(enableMotion) input(name: "schedule1motion", type: "int", title: "Schedule 1 Motion Timeout",  defaultValue: 120)
+    }
+if(schedule2) {
+    input(name: "schedule2scene", type: "string", title: "Schedule 2 Scene", defaultValue: "Concentrate")
+    input(name: "schedule2start", type: "string", title: "Schedule 2 Start", defaultValue: "04:00", submitOnChange: true)
+    input(name: "schedule2colorTemp", type: "int", title: "Schedule 2 Color Temp", defaultValue: 4291,  unit:  "K")
+    input(name: "schedule2level", type: "int", title: "Schedule 2 Level", defaultValue: 100)  
+    input(name: "schedule2timer", type: "int", title: "Occupancy Timeout", description: "Number of Seconds until Unoccupied", defaultValue: 3600) 
+        if(enableMotion) input(name: "schedule2motion", type: "int", title: "Schedule 2 Motion Timeout",  defaultValue: 300)
+}
+if(schedule3) {
+    input(name: "schedule3scene", type: "string", title: "Schedule 3 Scene", defaultValue: "Read") 
+    input(name: "schedule3start", type: "string", title: "Schedule 3 Start", defaultValue: "00:00", submitOnChange: true)
+    input(name: "schedule3colorTemp", type: "number", title: "Schedule 3 Color Temp", defaultValue: 2890,  unit:  "K")
+    input(name: "schedule3level", type: "int", title: "Schedule 3 Level", defaultValue: 100) 
+    input(name: "schedule3timer", type: "int", title: "Occupancy Timeout", description: "Number of Seconds", defaultValue: 3600)
+        if(enableMotion) input(name: "schedule3motion", type: "int", title: "Schedule 3 Motion Timeout",  defaultValue: 600)
+}    
+if(schedule4) {
+    input(name: "schedule4scene", type: "string", title: "Schedule 4 Scene", defaultValue: "Relax")
+    input(name: "schedule4start", type: "string", title: "Schedule 4 Start", defaultValue: "2:00", submitOnChange: true)
+    input(name: "schedule4colorTemp", type: "number", title: "Schedule 4 Color Temp", defaultValue: 2237,  unit:  "K")
+    input(name: "schedule4level", type: "int", title: "Schedule 4 Level", defaultValue: 60)  
+    input(name: "schedule4timer", type: "int", title: "Occupancy Timeout", description: "Number of Seconds", defaultValue: 3600)
+        if(enableMotion) input(name: "schedule4motion", type: "int", title: "Schedule 4 Motion Timeout",  defaultValue: 120) 
+}    
+if(schedule5) {
+    input(name: "schedule5scene", type: "string", title: "Schedule 5 Scene", defaultValue: "Nightlight")
+    input(name: "schedule5start", type: "string", title: "Schedule 5 Start", defaultValue: "4:00", submitOnChange: true)
+    input(name: "schedule5colorTemp", type: "number", title: "Schedule 5 Color Temp", defaultValue: 1700,  unit:  "K")
+    input(name: "schedule5level", type: "int", title: "Schedule 5 Level", defaultValue: "20")  
+    input(name: "schedule5timer", type: "int", title: "Occupancy Timeout", description: "Number of Second", defaultValue: 3600)
+        if(enableMotion) input(name: "schedule5motion", type: "int", title: "Schedule 5 Motion Timeout",  defaultValue: 60) 
+}    
+if(schedule6) {
+    input(name: "schedule6scene", type: "string", title: "Schedule 6 Scene", defaultValue: "Nightlight")
+    input(name: "schedule6start", type: "string", title: "Schedule 6 Start", defaultValue: "00:00", submitOnChange: true)
+    input(name: "schedule6colorTemp", type: "int", title: "Schedule 6 Color Temp", defaultValue: 1700,  unit:  "K")
+    input(name: "schedule6level", type: "int", title: "Schedule 6 Level", defaultValue: 10) 
+    input(name: "schedule6timer", type: "int", title: "Occupancy Timeout", description: "Number of Seconds", defaultValue: 3600)
+        if(enableMotion) input(name: "schedule6motion", type: "int", title: "Schedule 6 Motion Timeout",  defaultValue: 60) 
+    }
+    
+if(transitionSchedules) {
+    input(name: "transition1scene", type: "string", title: "Transition 1 Scene", defaultValue: "Sunrise")
+    input(name: "transition1length", type: "integer", title: "Transition 1 Length", defaultValue: 30, submitOnChange: true)
+    input(name: "transition2scene", type: "string", title: "Transition 2 Scene", defaultValue: "Full Daylight")
+    input(name: "transition2length", type: "integer", title: "Transition 2 Length", defaultValue: 20, submitOnChange: true)
+    input(name: "transition3scene", type: "string", title: "Transition 3 Scene", defaultValue: "Sunset")
+    input(name: "transition3length", type: "integer", title: "Transition 3 Length", defaultValue: 30, submitOnChange: true)
+    input(name: "transition4scene", type: "string", title: "Transition 4 Scene", defaultValue: "Evening")
+    input(name: "transition4length", type: "integer", title: "Transition 4 Length", defaultValue: 10, submitOnChange: true)
+    input(name: "transition5scene", type: "string", title: "Transition 5 Scene", defaultValue: "Nightlight")
+    input(name: "transition5length", type: "integer", title: "Transition 5 Length", defaultValue: 20, submitOnChange: true)
+    input(name: "transition6scene", type: "string", title: "Transition 6 Scene", defaultValue: "Midnight")
+    input(name: "transition6length", type: "integer", title: "Transition 6 Length", defaultValue: 10, submitOnChange: true)
+
+}
+if(motionSchedules){
+    input(name: "schedule1colorTemp", type: "int", title: "Schedule 1 Color Temp", defaultValue: 6410,  unit:  "K")
+    input(name: "schedule1level", type: "int", title: "Schedule 1 Level",  defaultValue: 100) 
+    input(name: "schedule2colorTemp", type: "int", title: "Schedule 2 Color Temp", defaultValue: 4291,  unit:  "K")
+    input(name: "schedule2level", type: "int", title: "Schedule 2 Level", defaultValue: 100)  
+    input(name: "schedule3colorTemp", type: "number", title: "Schedule 3 Color Temp", defaultValue: 2890,  unit:  "K")
+    input(name: "schedule3level", type: "int", title: "Schedule 3 Level", defaultValue: 100) 
+    input(name: "schedule4colorTemp", type: "number", title: "Schedule 4 Color Temp", defaultValue: 2237,  unit:  "K")
+    input(name: "schedule4level", type: "int", title: "Schedule 4 Level", defaultValue: 60)  
+    input(name: "schedule5colorTemp", type: "number", title: "Schedule 5 Color Temp", defaultValue: 1700,  unit:  "K")
+    input(name: "schedule5level", type: "int", title: "Schedule 5 Level", defaultValue: 20)  
+    input(name: "schedule6colorTemp", type: "int", title: "Schedule 6 Color Temp", defaultValue: 1700,  unit:  "K")
+    input(name: "schedule6level", type: "int", title: "Schedule 6 Level", defaultValue: 10) 
+    }
+
+if(customSpeed) {
+    input(name: "useDeviceSpeed", type: "bool", title: "Use level change speed from the physical device", description: "Not recommended", defaultValue: false)
+    input(name: "silentTimeAfterPush", type: "number", title: "Ignore rotation after push", description: "In milliseconds", defaultValue: "300", range: "1..2000")
+    input(name: "speedFastestThreshold", type: "number", title: "Fastest speed threshold", description: "In milliseconds", defaultValue: "25", range: "1..1000")
+    input(name: "speedFastThreshold", type: "number", title: "Fast speed threshold", description: "In milliseconds", defaultValue: "100", range: "1..1000")
+    input(name: "speedMediumThreshold", type: "number", title: "Medium speed threshold", description: "In milliseconds", defaultValue: "200", range: "1..1000")
+    input(name: "speedLowThreshold", type: "number", title: "Low speed threshold", description: "In milliseconds", defaultValue: "300", range: "1..1000")
+    input(name: "speedFastestIncrement", type: "number", title: "Fastest speed increment", description: "In level %", defaultValue: "12", range: "1..100")   
+    input(name: "speedFastIncrement", type: "number", title: "Fast speed increment", description: "In level %", defaultValue: "8", range: "1..100") 
+    input(name: "speedMediumIncrement", type: "number", title: "Medium speed increment", description: "In level %", defaultValue: "4", range: "1..100")    
+    input(name: "speedLowIncrement", type: "number", title: "Low speed increment", description: "In level %", defaultValue: "2", range: "1..100")   
+    }
+}
+metadata {
+	definition (name: "Lutron Aurora Dimmer with Color Temperature", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+		capability "Actuator"
+		capability "Switch"
+		capability "Switch Level"
+        capability "LightEffects"
+        capability "LevelPreset"
+        capability "ChangeLevel"
+		capability "Configuration"
+        capability "Color Control"
+        capability "Color Temperature"
+        capability "Motion Sensor"
+        capability "Presence Sensor"
+        capability "Refresh"
+        capability "PushableButton"
+		capability "DoubleTapableButton"
+		capability "HoldableButton"
+        
+        capability "MusicPlayer"
+        capability "AudioVolume"
+        
+
+
+
+        command "push", ["number"]
+        command "showSettings"
+        command "areLightsOn"
+        command "buttonPressLogic"
+        command "physicalTimeOfDay"
+        command "motionTimeOfDay"
+        command "digitalTimeOfDay"
+        command "clearPush"
+        command "enableCircadianSchedule"
+        command "disableCircadianSchedule"
+        //command "startLevelChange"
+        command "presetLevel", ["number"]
+        command "installed"
+        command "occupied"
+        command "resetToDefaults"
+
+
+
+        command "enableColorChanges"
+        command "disableColorChanges"
+        command "enableLevelChanges"
+        command "disableLevelChanges"
+        command "showSchedules"
+
+        command "setEnergize"
+        command "setConcentrate"
+        command "setRead"
+        command "setRelax"
+        command "setNightlight"
+        command "setNight"
+	    command "setScene", [[name:"scene", type:"ENUM", description:"Select Scene", constraints:[0:"Energize", 1:"Concentrate", 2:"Read", 3:"Relax", 4:"Nightlight"]]]
+        command "setMotionInactive"        
+        command "setMotionActive"
+
+
+        attribute "scene", "string"
+        attribute "battery", "integer"
+        attribute "Circadian Schedules","bool"
+        attribute "Level Changes","bool"
+        attribute "Color Changes","bool"
+
+		fingerprint profileId: "0104", inClusters: "0000,0001,0003,1000,FC00", outClusters: "0003,0004,0006,0008,0019,1000", manufacturer: "Lutron", model: "Z3-1BRL"	}
+}
+def resetToDefaults(){
+    device.updateSetting("debug",[value: false, type:"bool"])
+    device.updateSetting("trace",[value: false, type:"bool"])
+    device.updateSetting("enableMotion",[value: false, type:"bool"])
+    
+    device.updateSetting("transition1scene",[value: "Sunrise", type:"string"])
+    device.updateSetting("transition1length",[value: 30, type:"int"])
+      
+    device.updateSetting("schedule1scene",[value: "Energize", type:"string"])
+    device.updateSetting("schedule1start",[value: "00:30", type:"string"])
+    device.updateSetting("schedule1colorTemp",[value: 6410, type:"int"])
+    device.updateSetting("schedule1level",[value: 100, type:"int"])
+    device.updateSetting("schedule1timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule1motion",[value: 120, type:"bool"])
+        
+    device.updateSetting("transition2scene",[value: "Full Daylight", type:"string"])
+    device.updateSetting("transition2length",[value: 20, type:"int"])
+      
+    device.updateSetting("schedule2scene",[value: "Concentrate", type:"string"])
+    device.updateSetting("schedule2start",[value: "04:00", type:"string"])
+    device.updateSetting("schedule2colorTemp",[value: 4291, type:"int"])
+    device.updateSetting("schedule2level",[value: 100, type:"int"])
+    device.updateSetting("schedule2timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule2motion",[value: 120, type:"bool"])
+       
+    device.updateSetting("transition3scene",[value: "Sunset", type:"string"])
+    device.updateSetting("transition3length",[value: 30, type:"int"])
+      
+    device.updateSetting("schedule3scene",[value: "Read", type:"string"])
+    device.updateSetting("schedule3start",[value: "00:00", type:"string"])
+    device.updateSetting("schedule3colorTemp",[value: 2890, type:"int"])
+    device.updateSetting("schedule3level",[value: 100, type:"int"])
+    device.updateSetting("schedule3timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule3motion",[value: 120, type:"bool"])
+    
+    device.updateSetting("transition4scene",[value: "Evening", type:"string"])
+    device.updateSetting("transition4length",[value: 10, type:"int"])
+          
+    device.updateSetting("schedule4scene",[value: "Relax", type:"string"])
+    device.updateSetting("schedule4start",[value: "02:00", type:"string"])
+    device.updateSetting("schedule4colorTemp",[value: 2237, type:"int"])
+    device.updateSetting("schedule4level",[value: 60, type:"int"])
+    device.updateSetting("schedule4timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule4motion",[value: 120, type:"bool"])
+        
+    device.updateSetting("transition5scene",[value: "Nightlight", type:"string"])
+    device.updateSetting("transition5length",[value: 20, type:"int"])
+      
+    device.updateSetting("schedule5scene",[value: "Nightlight", type:"string"])
+    device.updateSetting("schedule5start",[value: "04:00", type:"string"])
+    device.updateSetting("schedule5colorTemp",[value: 1700, type:"int"])
+    device.updateSetting("schedule5level",[value: 20, type:"int"])
+    device.updateSetting("schedule5timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule5motion",[value: 60, type:"bool"])
+    
+    device.updateSetting("transition6scene",[value: "Midnight", type:"string"])
+    device.updateSetting("transition6length",[value: 10, type:"int"])
+    
+    device.updateSetting("schedule6scene",[value: "Nightlight", type:"string"])
+    device.updateSetting("schedule6start",[value: "00:00", type:"string"])
+    device.updateSetting("schedule6colorTemp",[value: 1700, type:"int"])
+    device.updateSetting("schedule6level",[value: 10, type:"int"])
+    device.updateSetting("schedule6timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule6motion",[value: 60, type:"bool"])
+}
+ 
+  def installed() {
+    state.previousPush = now()
+    state.levelCounter = 0;
+    device.updateSetting("debug",[value: false, type:"bool"])
+    device.updateSetting("trace",[value: false, type:"bool"])
+    device.updateSetting("enableMotion",[value: false, type:"bool"])
+    
+    device.updateSetting("transition1scene",[value: "Sunrise", type:"string"])
+    device.updateSetting("transition1length",[value: 30, type:"int"])
+      
+    device.updateSetting("schedule1scene",[value: "Energize", type:"string"])
+    device.updateSetting("schedule1start",[value: "00:30", type:"string"])
+    device.updateSetting("schedule1colorTemp",[value: 6410, type:"int"])
+    device.updateSetting("schedule1level",[value: 100, type:"int"])
+    device.updateSetting("schedule1timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule1motion",[value: 120, type:"bool"])
+        
+    device.updateSetting("transition2scene",[value: "Full Daylight", type:"string"])
+    device.updateSetting("transition2length",[value: 20, type:"int"])
+      
+    device.updateSetting("schedule2scene",[value: "Concentrate", type:"string"])
+    device.updateSetting("schedule2start",[value: "04:00", type:"string"])
+    device.updateSetting("schedule2colorTemp",[value: 4291, type:"int"])
+    device.updateSetting("schedule2level",[value: 100, type:"int"])
+    device.updateSetting("schedule2timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule2motion",[value: 120, type:"bool"])
+       
+    device.updateSetting("transition3scene",[value: "Sunset", type:"string"])
+    device.updateSetting("transition3length",[value: 30, type:"int"])
+      
+    device.updateSetting("schedule3scene",[value: "Read", type:"string"])
+    device.updateSetting("schedule3start",[value: "00:00", type:"string"])
+    device.updateSetting("schedule3colorTemp",[value: 2890, type:"int"])
+    device.updateSetting("schedule3level",[value: 100, type:"int"])
+    device.updateSetting("schedule3timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule3motion",[value: 120, type:"bool"])
+    
+    device.updateSetting("transition4scene",[value: "Evening", type:"string"])
+    device.updateSetting("transition4length",[value: 10, type:"int"])
+          
+    device.updateSetting("schedule4scene",[value: "Relax", type:"string"])
+    device.updateSetting("schedule4start",[value: "02:00", type:"string"])
+    device.updateSetting("schedule4colorTemp",[value: 2237, type:"int"])
+    device.updateSetting("schedule4level",[value: 60, type:"int"])
+    device.updateSetting("schedule4timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule4motion",[value: 120, type:"bool"])
+        
+    device.updateSetting("transition5scene",[value: "Nightlight", type:"string"])
+    device.updateSetting("transition5length",[value: 20, type:"int"])
+      
+    device.updateSetting("schedule5scene",[value: "Nightlight", type:"string"])
+    device.updateSetting("schedule5start",[value: "04:00", type:"string"])
+    device.updateSetting("schedule5colorTemp",[value: 1700, type:"int"])
+    device.updateSetting("schedule5level",[value: 20, type:"int"])
+    device.updateSetting("schedule5timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule5motion",[value: 60, type:"bool"])
+    
+    device.updateSetting("transition6scene",[value: "Midnight", type:"string"])
+    device.updateSetting("transition6length",[value: 10, type:"int"])
+    
+    device.updateSetting("schedule6scene",[value: "Nightlight", type:"string"])
+    device.updateSetting("schedule6start",[value: "00:00", type:"string"])
+    device.updateSetting("schedule6colorTemp",[value: 1700, type:"int"])
+    device.updateSetting("schedule6level",[value: 10, type:"int"])
+    device.updateSetting("schedule6timer",[value: 3600, type:"int"])
+    device.updateSetting("schedule6motion",[value: 60, type:"bool"])
+    //schedule("0 30 2/23 ? * * *", refresh)       
+    state.pushes = 0 
+    
+    state.previousDeviceLevel = 0
+    state.speed = 1
+    state.level = 0
+    state.previousPush = 0;
+    state.changeTime = 0;
+    state.previousChangeTime = 0;
+    state.lastPush = now()
+    
+    //sendEvent(name: "switch", value: "on", displayed: false)
+	//sendEvent(name: "level", value: "50", displayed: false) 
+	//sendEvent(name: "pushed", value: 4, displayed: true)
+	//sendEvent(name: "numberOfButtons", value: 1, displayed: false)1
+    sendEvent(name: "scene", value: "Hellraiser", displayed: true)
+    //sendEvent(name: "presence", value: "present", displayed: false)
+}  
+// get today's sunrise and sunset
+//    log.debug location.mode
+def sunScale() {
+    def riseAndSet = getSunriseAndSunset()
+    def schedule1 = getSunriseAndSunset(sunriseOffset: schedule1start)
+    def schedule2 = getSunriseAndSunset(sunriseOffset: schedule2start)
+    def schedule3 = getSunriseAndSunset(sunsetOffset: schedule3start)
+    def schedule4 = getSunriseAndSunset(sunsetOffset: schedule4start)
+    def schedule5 = getSunriseAndSunset(sunsetOffset: schedule5start)
+    def schedule6 = timeToday(schedule6start, location.timeZone)
+    if (debug) log.debug riseAndSet.sunrise
+    if (debug) log.debug riseAndSet.sunset
+    def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: "0:05", sunsetOffset: -30)
+    if (debug) log.debug offsetRiseAndSet.sunrise
+    if (debug) log.debug offsetRiseAndSet.sunset
+    return
+}
+
+
+
+def handleLevelEvent(descMap) {
+    state.changeTime = now()
+
+    occupied()
+    if (state.changeTime - state.lastPush < silentTimeAfterPush) {
+        if (debug) log.debug "Ignoring level within ${silentTimeAfterPush}ms of a push"
+        return
+    }
+
+    int deviceLevel = descMap.data.size() < 3 ? 0 : Integer.parseInt(descMap.data[0], 16) * (100/254)
+    calculateSpeed(deviceLevel)
+    state.previousLevel = state.level.toInteger()
+    state.newLevel = deviceLevel.toInteger()
+    
+    if (state.previousLevel < state.newLevel || (state.newLevel == 100 && state.previousLevel == 100)) {
+        if (debug) log.debug "Increasing driver level"
+        state.level = state.level + state.speed
+        sendEvent(name: "level", value: state.level, type: "physical")
+        if (device.currentValue("switch") == "off") 
+        {sendEvent(name: "switch", value: "on", type: "physical", descriptionText: "$device dimmmed on physically.")}
+        //setLevelPhysical(state.level)
+    } else if (state.newLevel < state.previousLevel || (state.newLevel == 0 && state.previousLevel == 0)) {
+        if (debug) log.debug "Decreasing driver level"
+        state.level = state.level - state.speed
+        sendEvent(name: "level", value: state.level, type: "physical")
+        //setLevelPhysical(state.level)
+    }
+    state.previousDeviceLevel = deviceLevel
+    
+    if (state.level > 100) {
+        if (debug) log.debug "Limiting driver level to 100"
+        state.level = 100;
+    } else if (state.level < 0) {
+        if (debug) log.debug "Limiting driver level to 0"
+        state.level = 0;
+        if (device.currentValue("switch") == "on") 
+        {sendEvent(name: "switch", value: "off", isStateChange: true, type: "physical", descriptionText: "$device dimmmed off physically.")}                                              
+    }
+    log.debug "Device level = ${deviceLevel}"
+    log.debug "Driver level = ${state.level}%"
+}
+
+def calculateSpeed(deviceLevel) {
+    if (useDeviceSpeed && deviceLevel - state.previousDeviceLevel != 0) {
+        state.speed = Math.abs(deviceLevel - state.previousDeviceLevel);
+                
+
+        intervalMillis = intervalMillis.toInteger()
+        log.debug "Device speed is ${state.speed}"
+        return
+    }
+
+    long intervalMillis = state.changeTime - state.previousChangeTime
+
+    if (intervalMillis <= 600) {
+        state.speed = 15
+    } else if (intervalMillis <= 700) {
+        state.speed = 8
+    } else if (intervalMillis <= 900) {
+        state.speed = 5
+    } else if (intervalMillis <= 1200) {
+        state.speed = 3
+    } else {
+        state.speed = 1
+    }
+   state.previousChangeTime = state.changeTime
+    log.debug "Calculated speed is ${state.speed} (${intervalMillis}ms)"
+}
+
+
+
+
+                                                                                                                                                    //PARSE
+def parse(String description) {
+	if (debug) log.debug "description = $description"
+	def event = zigbee.getEvent(description)
+	if (event) {
+        if (trace) log.trace "events direct from the source ${event}"
+        //sendEvent(name: event.name, value: event.value, isStateChange: false, descriptionText: "Event from Zigbee", type: "event")
+        if (event.name == "battery") {
+            sendEvent(name: event.name, value: event.value, unit: "%", isStateChange: false, type: "event")
+
+        }
+		if (event.name=="level" && event.value==0) {
+            log.info "$device level from event = 0"
+           // sendEvent(name: event.name, value: event.value, isStateChange: false, type: "event")
+        } else {if (debug) log.trace "elsed event. Shouldn't really see this if the next phrase contains battery. ${event}"
+		        }
+	} else {
+		def descMap = zigbee.parseDescriptionAsMap(description)
+        if (descMap && descMap.clusterInt == 0x008) {
+            if (trace) log.trace "${descMap} "
+               //log.debug "8 data = ${descMap.data}"
+            def dataList = descMap.data
+            if (dataList.size() < 3) {
+               if (debug) log.warn  "Ignoring data ${dataList}"
+            } else {     
+                colorTimeOfDay()
+                handleLevelEvent(descMap)
+
+                //int deviceLevel = Integer.parseInt(descMap.data[0], 16) * (100/254)
+                //setLevelPhysical(deviceLevel)
+
+
+                //if (trace) log.trace "$device level after int = ${deviceLevel}" 
+
+			    
+            }            
+        } else if (descMap && descMap.clusterInt == 0x0006) {   
+            if (trace) log.trace "Any Button Press/Hold/Double Tap ${descMap}"
+            buttonPressLogic()
+
+            //if (device.currentValue("switch") == "off"){timeOfDay()} 
+            //sendEvent(name: "switch", value: device.currentValue("switch") == "on" ? "off" : "on", type: "physical", descriptionText: "$device switch was ${device.currentValue("switch")}.")
+			//sendEvent(name: "pushed", value: value, type: "physical", isStateChange: true, descriptionText: "$device button 1 was pushed")	
+		} else {
+			if (trace) log.warn "DID NOT PARSE MESSAGE for description : $description"
+			if (trace) log.warn "${descMap}"
+		}
+	}
+}
+
+def refresh (){
+
+//Schedule Color Temp Checks at 7/7:30, 10/10:30, 5/5:30, 8/8:30, 11/11:30
+    if (circadian) schedule("0 0,30 7,10,17,20,23 ? * * *", areLightsOn)
+    unschedule(refresh)
+    device.clearSetting()
+    state.remove("schedule6end")
+    log.info "schedule 2 is $schedule3"
+ 
+    //schedule6end = timeToday(schedule6end, location.timeZone)
+    //state.schedule6end = schedule6end.format('HH:mm', location.timeZone)
+    //state.remove("switch")
+    //settings.remove("enableAutomaticGetInfo")
+    //def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: schedule1start, sunsetOffset: -30)
+    //def threeHourRiseAndSet = getSunriseAndSunset(sunriseOffset: "3:00", sunsetOffset: "3:00")
+    //def fiveHourRiseAndSet = getSunriseAndSunset(sunriseOffset: "5:00", sunsetOffset: "5:00")
+}
+//Transition Events
+def transition1
+def transition2
+def transition3
+def transition4
+def transition5
+def transition6
+
+
+def enableColorChanges
+def disableColorChanges
+def enableLevelChanges
+
+def disableLevelChanges() {
+state.levelChanges =  false
+}
+
+
+//Buttons
+def push() {
+    if (device.currentValue("switch") == "off"){
+        physicalTimeOfDay()
+        if (trace) log.trace "$device was Off when pushed"
+     }
+     else if(device.currentValue("switch") == "on"){
+        if (debug) log.trace "$device was On when pushed"
+        sendEvent(name: "switch", value: "off", isStateChange: true, type: "physical", descriptionText: "$device turned off physically.")
+     }
+    sendEvent(name: "pushed", value: 1, type: "physical", isStateChange: true, descriptionText: "$device button was pushed")
+    if (debug) log.trace "Single Push Registered"
+    occupied()
+}
+def doubleTap() {
+    sendEvent("name": "doubleTapped", "value":  1, isStateChange: true, type: "physical", descriptionText: "$device was double tapped")
+    sendEvent(name: "pushed", value: 2, type: "physical", isStateChange: true, descriptionText: "$device button double tapped")
+    if (debug) log.trace "double tap registered"
+    occupied()
+}
+def hold() {
+    sendEvent("name": "held", "value":  1, isStateChange: true, type: "physical", descriptionText: "$device was double held")
+    occupied()
+}
+//Pyshical Commands
+///Physical Button Press Logic	 
+def buttonPressLogic()	{
+    state.previousPush = state.lastPush
+    state.lastPush = now()
+    runInMillis(400, "buttonPressLogic2")
+    
+}
+def buttonPressLogic2() {
+ if (state.lastPush - state.previousPush < 300){
+        if (debug) log.trace "it was quick"
+        doubleTap()
+        return
+        } else if (state.lastPush - state.previousPush > silentTimeAfterPush){
+        push()
+    }
+}
+//Physical Level
+
+
+void startLevelChange(direction, duration = null) {
+    if (direction == "up") {
+        levelUp() } else {
+        levelDown()
+    }
+}
+def levelUp() {
+	def curLevel = device.currentValue("level").toInteger()
+	if (curLevel == 100) { return }
+	def newLevel = curLevel + 4
+	if (newLevel > 100) { newLevel = 100 }
+	setLevel(newLevel, 0)
+	runIn(1, levelUp)
+    if (trace) log.trace "Scaling up to $newLevel"
+}
+def levelDown() {
+	def curLevel = device.currentValue("level").toInteger()
+	if (curLevel == 0) { return }
+	def newLevel = curLevel - 4
+	if (newLevel < 0) { newLevel = 0 }
+	setLevel(newLevel, 0)
+	if (newLevel == 0) { off() }
+	runIn(1, levelDown)
+    if (trace) log.trace "Scaling down to $newLevel"
+}
+void stopLevelChange() {
+    //stopLevelChange()
+    unschedule(levelUp)
+    unschedule(levelDown)
+
+}
+def presetLevel(level){
+sendEvent(name: "presetLevel", value: level, type: "digital", descriptionText: "Level preset digitally.")  
+}
+
+def setLevelPhysical(value, rate = null) {
+    state.previousLevel = state.newLevel.toInteger()
+    state.newLevel = value
+    state.levelCounter = (state.levelCounter + 1)
+    def levelCounter = state.levelCounter.toInteger()
+    if (1 < levelCounter) directionChecker(value)
+    //sendEvent(name: "level", value: value, type: "physical")  
+    occupied()
+}
+void directionChecker(value){
+
+    def previousLevel = state.previousLevel.toInteger()
+    def newLevel = state.newLevel.toInteger()
+    def levelCounter = state.levelCounter.toInteger()
+    log.trace "Got as far as Checking Direction"
+    if (state.previousLevel < state.newLevel || (state.newLevel == 100 && state.previousLevel == 100)){
+            correctValue = (state.level + 1)
+            correctDigit = correctValue.toInteger()
+            sendEvent(name: "level", value: correctDigit, type: "physical")
+            log.trace "Up $correctDigit"
+            state.level = correctValue;
+            state.levelCounter = 0;
+    } else if (state.newLevel < state.previousLevel || (state.newLevel == 0 && state.previousLevel == 0))  {
+            correctValue = (state.level - 1)
+            correctDigit = correctValue.toInteger()
+            log.trace "Down $correctDigit"
+            sendEvent(name: "level", value: correctDigit, type: "physical")
+            state.level = correctValue;
+            state.levelCounter = 0;
+    }
+    if (correctValue == 0) {
+	sendEvent(name: "switch", value: "off", isStateChange: true, type: "physical", descriptionText: "$device dimmmed off physically.")
+	} else {
+
+    sendEvent(name: "switch", value: "on", type: "physical", descriptionText: "$device dimmmed physically.")
+    }	
+        }
+//Schedule for Physical Touch
+void physicalTimeOfDay() {
+    if (debug) log.trace "Time of Day from Physical Touch"
+    //Date currTimeD, startTimeD1, endTimeD1, startTimeD2, endTimeD2, startTimeD3, endTimeD3, startTimeD4, endTimeD4, startTimeD5, endTimeD5, transition1start
+    currTimeD = new Date()
+    def schedule1 = getSunriseAndSunset(sunriseOffset: schedule1start)
+    def schedule2 = getSunriseAndSunset(sunriseOffset: schedule2start)
+    def schedule3 = getSunriseAndSunset(sunsetOffset: schedule3start)
+    def schedule4 = getSunriseAndSunset(sunsetOffset: schedule4start)
+    def schedule5 = getSunriseAndSunset(sunsetOffset: schedule5start)
+    def schedule6 = timeToday(schedule6start, location.timeZone)
+    if( timeOfDayIsBetween(schedule1.sunrise, schedule2.sunrise, currTimeD, location.timeZone))
+        {    
+            sendEvent(name: "colorTemperature", value: schedule1colorTemp, isStateChange: true, unit:  "K", type: "physical")
+            sendEvent(name: "level", value: schedule1level, type: "physical", isStateChange: true)
+            sendEvent(name: "scene", value: schedule1scene, type: "physical", isStateChange: true, descriptionText: "Physically triggered $schedule1scene on $device.")
+            if (debug) log.info "Physically triggered ${schedule1scene} at ${schedule1level}% and ${schedule1colorTemp}k between ${schedule1.sunrise} and ${schedule2.sunrise}."
+        }
+    if( timeOfDayIsBetween(schedule2.sunrise, schedule3.sunset, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule2colorTemp, isStateChange: true, unit:  "K", type: "physical")
+            sendEvent(name: "level", value: schedule2level, type: "physical", isStateChange: true)
+            sendEvent(name: "scene", value: schedule2scene, type: "physical", isStateChange: true, descriptionText: "Physically triggered $schedule2scene on $device.")
+            if (debug) log.info  "Physically triggered ${schedule2scene} at ${schedule2level}% and ${schedule2colorTemp}k between ${schedule2.sunrise} and ${schedule3.sunset}."
+        }
+    if( timeOfDayIsBetween(schedule3.sunset, schedule4.sunset, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule3colorTemp, isStateChange: true, unit:  "K", type: "physical")
+            sendEvent(name: "level", value: schedule3level, type: "physical", isStateChange: true)
+            sendEvent(name: "scene", value: schedule3scene, type: "physical", isStateChange: true, descriptionText: "Physically triggered $schedule3scene on $device.")
+            if (debug) log.info "Physically triggered ${schedule3scene} at ${schedule3level}% and ${schedule3colorTemp}k between ${schedule3.sunset} and ${schedule4.sunset}."
+        }
+    if( timeOfDayIsBetween(schedule4.sunset, schedule5.sunset, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule4colorTemp, isStateChange: true, unit:  "K", type: "physical")
+            sendEvent(name: "level", value: schedule4level, type: "physical", isStateChange: true)
+            sendEvent(name: "scene", value: schedule4scene, type: "physical",isStateChange: true, descriptionText: "Physically triggered $schedule4scene on $device.")
+            if (debug) log.info "Physically triggered ${schedule4scene} at ${schedule4level}% and ${schedule4colorTemp}k between ${schedule4.sunset} and ${schedule5.sunset}."
+        }
+    if( timeOfDayIsBetween(schedule5.sunset, schedule6, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule5colorTemp, isStateChange: true, unit:  "K", type: "physical")
+            sendEvent(name: "level", value: schedule5level, type: "physical", isStateChange: true)
+            sendEvent(name: "scene", value: schedule5scene, type: "physical", isStateChange: true, descriptionText: "Physically triggered $schedule5scene on $device.")
+            if (debug) log.info "Physically triggered ${schedule5scene} at ${schedule5level}% and ${schedule5colorTemp}k between ${schedule5.sunset} and ${schedule6}."
+        }
+    if( timeOfDayIsBetween(schedule6, schedule1.sunrise, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule6colorTemp, isStateChange: true, unit:  "K", type: "physical")
+            sendEvent(name: "level", value: schedule6level, type: "physical", isStateChange: true)
+            sendEvent(name: "scene", value: scene6scene, type: "physical", isStateChange: true, descriptionText: "Physically triggered $schedule6scene on $device.")
+            if (debug) log.info "Physically triggered ${schedule6scene} at ${schedule6level}% and ${schedule6colorTemp}k between ${schedule6} and ${schedule1.sunrise}."
+        }
+    sendEvent(name: "switch", value: "on", isStateChange: true, type: "physical", descriptionText: "$device turned on physically.")
+}
+//Digital Commands
+def motionOff() {
+    if(device.currentValue("presence") == "not present"){
+        sendEvent(name: "switch", value: "off", isStateChange: true, type: "motion", descriptionText: "$device turned off from motion timeout.")
+    }else {
+        motionTimeout()
+        if (trace) log.trace "Presence Active when Motion TImed Out, should be rescheduling"
+    }
+}
+def off() {
+	sendEvent(name: "switch", value: "off", isStateChange: true, type: "digital", descriptionText: "$device turned off digitally.")
+}
+def on() {
+digitalTimeOfDay()
+}
+def setLevel(value) {
+    sendEvent(name: "level", value: value, type: "digital", descriptionText: "Level set digitally.")
+}
+def setLevel(value, duration) {
+    sendEvent(name: "level", value: value, type: "digital", descriptionText: "Level set digitally.")
+}
+//Schedule for Digital Touch
+void digitalTimeOfDay() {
+    if (debug) log.trace "Time of Day from Digital"
+    //Date currTimeD, startTimeD1, endTimeD1, startTimeD2, endTimeD2, startTimeD3, endTimeD3, startTimeD4, endTimeD4, startTimeD5, endTimeD5, transition1start
+    currTimeD = new Date()
+    def schedule1 = getSunriseAndSunset(sunriseOffset: schedule1start)
+    def schedule2 = getSunriseAndSunset(sunriseOffset: schedule2start)
+    def schedule3 = getSunriseAndSunset(sunsetOffset: schedule3start)
+    def schedule4 = getSunriseAndSunset(sunsetOffset: schedule4start)
+    def schedule5 = getSunriseAndSunset(sunsetOffset: schedule5start)
+    def schedule6 = timeToday(schedule6start, location.timeZone)
+    if( timeOfDayIsBetween(schedule1.sunrise, schedule2.sunrise, currTimeD, location.timeZone))
+        {     
+            sendEvent(name: "colorTemperature", value: schedule1colorTemp, isStateChange: true, unit:  "K", type: "digital")
+            sendEvent(name: "level", value: schedule1level, type: "digital", isStateChange: true) 
+            sendEvent(name: "scene", value: schedule1scene, type: "digital", isStateChange: true, descriptionText: "Digitally triggered $schedule1scene on $device.")
+            if (debug) log.info  "Digitally triggered ${schedule1scene} at ${schedule1level}% and ${schedule1colorTemp}k between ${schedule1.sunrise} and ${schedule2.sunrise}."
+        }
+    if( timeOfDayIsBetween(schedule2.sunrise, schedule3.sunset, currTimeD, location.timeZone))
+    {
+            sendEvent(name: "colorTemperature", value: schedule2colorTemp, isStateChange: true, unit:  "K", type: "digital")
+            sendEvent(name: "level", value: schedule2level, type: "digital",, isStateChange: true)
+            sendEvent(name: "scene", value: schedule2scene, type: "digital", isStateChange: true, descriptionText: "Digitally triggered $schedule2scene on $device.")
+            if (debug) log.info  "Digitally triggered ${schedule2scene} at ${schedule2level}% and ${schedule2colorTemp}k between ${schedule2.sunrise} and ${schedule3.sunset}."
+        }
+    if( timeOfDayIsBetween(schedule3.sunset, schedule4.sunset, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule3colorTemp, isStateChange: true, unit:  "K", type: "digital")
+            sendEvent(name: "level", value: schedule3level, type: "digital", isStateChange: true)
+            sendEvent(name: "scene", value: schedule3scene, type: "digital", isStateChange: true, descriptionText: "Digitally triggered $schedule3scene on $device.")
+            if (debug) log.info  "Digitally triggered ${schedule3scene} at ${schedule3level}% and ${schedule3colorTemp}k between ${schedule3.sunset} and ${schedule4.sunset}."
+        }
+    if( timeOfDayIsBetween(schedule4.sunset, schedule5.sunset, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule4colorTemp, isStateChange: true, unit:  "K", type: "digital")
+            sendEvent(name: "level", value: schedule4level, type: "digital", isStateChange: true)
+            sendEvent(name: "scene", value: schedule4scene, type: "digital", isStateChange: true, descriptionText: "Digitally triggered $schedule4scene on $device.")
+            if (debug) log.info  "Digitally triggered ${schedule4scene} at ${schedule4level}% and ${schedule4colorTemp}k between ${schedule4.sunset} and ${schedule5.sunset}."
+        }
+    if( timeOfDayIsBetween(schedule5.sunset, schedule6, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule5colorTemp, isStateChange: true, unit:  "K", type: "digital")
+            sendEvent(name: "level", value: schedule5level, type: "digital", isStateChange: true)
+            sendEvent(name: "scene", value: schedule5scene, type: "digital", isStateChange: true, descriptionText: "Digitally triggered $schedule5scene on $device.")
+            if (debug) log.info  "Digitally triggered ${schedule5scene} at ${schedule5level}% and ${schedule5colorTemp}k between ${schedule5.sunset} and ${schedule6}."
+        }
+    if( timeOfDayIsBetween(schedule6, schedule1.sunrise, currTimeD, location.timeZone))
+        {
+            sendEvent(name: "colorTemperature", value: schedule6colorTemp, isStateChange: true, unit:  "K", type: "digital")
+            sendEvent(name: "level", value: schedule6level, type: "digital", isStateChange: true)
+            sendEvent(name: "scene", value: scene6scene, type: "digital", isStateChange: true, descriptionText: "Digitally triggered $schedule6scene on $device.")
+            if (debug) log.info  "Digitally triggered ${schedule6scene} at ${schedule6level}% and ${schedule6colorTemp}k between ${schedule6} and ${schedule1.sunrise}."
+        }
+    sendEvent(name: "switch", value: "on", isStateChange: true, type: "digital", descriptionText: "$device turned on programatically.")
+}
+//Schedule for Motion
+void motionTimeOfDay() {
+    if (debug) log.trace "Time of Day from Motion"
+    //Date currTimeD, startTimeD1, endTimeD1, startTimeD2, endTimeD2, startTimeD3, endTimeD3, startTimeD4, endTimeD4, startTimeD5, endTimeD5, transition1start
+    currTimeD = new Date()
+    def schedule1 = getSunriseAndSunset(sunriseOffset: schedule1start)
+    def schedule2 = getSunriseAndSunset(sunriseOffset: schedule2start)
+    def schedule3 = getSunriseAndSunset(sunsetOffset: schedule3start)
+    def schedule4 = getSunriseAndSunset(sunsetOffset: schedule4start)
+    def schedule5 = getSunriseAndSunset(sunsetOffset: schedule5start)
+    def schedule6 = timeToday(schedule6start, location.timeZone)
+    if (enableMotion){
+    if( timeOfDayIsBetween(schedule1.sunrise, schedule2.sunrise, currTimeD, location.timeZone)){
+                if (enableColor) sendEvent(name: "colorTemperature", value: schedule1colorTemp, isStateChange: true, unit:  "K", type: "motion")
+                if (enableLevel) sendEvent(name: "level", value: schedule1level, type: "motion", isStateChange: true) 
+                sendEvent(name: "scene", value: schedule1scene, type: "motion", isStateChange: true, descriptionText: "Motion triggered $motion1schedule on $device")
+                if (debug) log.info  "Motion triggered ${schedule1scene} at ${schedule1level}% and ${schedule1colorTemp}k between ${schedule1start} and ${schedule1end}."
+        }
+    if( timeOfDayIsBetween(schedule2.sunrise, schedule3.sunset, currTimeD, location.timeZone)){
+            if (enableColor) sendEvent(name: "colorTemperature", value: schedule2colorTemp, isStateChange: true, unit:  "K", type: "motion", descriptionText: "$device turned on between 10:00 am & 5:00 pm. Concentrate")
+            if (enableLevel) sendEvent(name: "level", value: schedule2level, type: "motion",, isStateChange: true)
+            sendEvent(name: "scene", value: schedule2scene, type: "motion", isStateChange: true, descriptionText: "Motion triggered $motion2schedule on $device")
+            if (debug) log.info  "Motion triggered ${schedule2scene} at ${schedule2level}% and ${schedule2colorTemp}k between ${schedule2start} and ${schedule2end}."
+        }
+    if( timeOfDayIsBetween(schedule3.sunset, schedule4.sunset, currTimeD, location.timeZone)){
+            if (enableColor) sendEvent(name: "colorTemperature", value: schedule3colorTemp, isStateChange: true, unit:  "K", type: "motion")
+            if (enableLevel) sendEvent(name: "level", value: schedule3level, type: "motion", isStateChange: true)
+            sendEvent(name: "scene", value: schedule3scene, type: "motion", isStateChange: true, descriptionText: "Motion triggered $motion3schedule on $device")
+            if (debug) log.info  "Motion triggered ${schedule3scene} at ${schedule3level}% and ${schedule3colorTemp}k between ${schedule3start} and ${schedule3end}."
+
+        }
+    if( timeOfDayIsBetween(schedule4.sunset, schedule5.sunset, currTimeD, location.timeZone)){ 
+            if (enableColor) sendEvent(name: "colorTemperature", value: schedule4colorTemp, isStateChange: true, unit:  "K", type: "motion")
+            if (enableLevel) sendEvent(name: "level", value: schedule4level, type: "motion", isStateChange: true)
+            sendEvent(name: "scene", value: schedule4scene, type: "motion", isStateChange: true, descriptionText: "Motion triggered $motion4schedule on $device")
+            if (debug) log.info  "Motion triggered ${schedule4scene} at ${schedule4level}% and ${schedule4colorTemp}k between ${schedule4start} and ${schedule4end}."
+        }
+    if( timeOfDayIsBetween(schedule5.sunset, schedule6, currTimeD, location.timeZone)){ 
+            if (enableColor) sendEvent(name: "colorTemperature", value: schedule5colorTemp, isStateChange: true, unit:  "K", type: "motion")
+            if (enableLevel) sendEvent(name: "level", value: schedule5level, type: "motion", isStateChange: true)
+            sendEvent(name: "scene", value: schedule5scene, type: "motion", isStateChange: true, descriptionText: "Motion triggered $motion5schedule on $device")
+            if (debug) log.info  "Motion triggered ${schedule5scene} at ${schedule5level}% and ${schedule5colorTemp}k between ${schedule5start} and ${schedule5end}."
+            }
+    if( timeOfDayIsBetween(schedule6, schedule1.sunrise, currTimeD, location.timeZone)){
+            if (enableColor) sendEvent(name: "colorTemperature", value: schedule6colorTemp, isStateChange: true, unit:  "K", type: "motion")
+            if (enableLevel) sendEvent(name: "level", value: schedule6level, type: "motion", isStateChange: true)
+            sendEvent(name: "scene", value: scene6scene, type: "motion", isStateChange: true, descriptionText: "Motion triggered $motion6schedule on $device")
+            if (debug) log.info  "Motion triggered ${schedule6scene} at ${schedule6level}% and ${schedule6colorTemp}k between ${schedule6start} and ${schedule6end}."
+        }
+        sendEvent(name: "switch", value: "on", isStateChange: true, type: "motion", descriptionText: "$device turned on by motion.")
+        motionTimeout()
+}
+
+}
+//Schedule for Motion Timeout
+void motionTimeout() {
+    timeout1=schedule1motion.toInteger()
+    timeout2=schedule2motion.toInteger()
+    timeout3=schedule3motion.toInteger()
+    timeout4=schedule4motion.toInteger()
+    timeout5=schedule5motion.toInteger()
+    timeout6=schedule6motion.toInteger()
+
+        if( timeOfDayIsBetween(schedule1.sunrise, schedule2.sunrise, currTimeD, location.timeZone))
+            {         
+            runIn(timeout1, motionOff, [overwrite: true])
+            if (debug) log.trace  "$device scheduled to turn off in $timeout1"
+            }
+        if( timeOfDayIsBetween(schedule2.sunrise, schedule3.sunset, currTimeD, location.timeZone))
+            {
+            runIn(timeout2, motionOff, [overwrite: true])
+            if (debug) log.trace  "$device scheduled to turn off in $timeout2"
+            }
+        if( timeOfDayIsBetween(schedule3.sunset, schedule4.sunset, currTimeD, location.timeZone))
+            {
+            runIn(timeout3, motionOff, [overwrite: true])
+            if (debug) log.trace  "$device scheduled to turn off in $timeout3"
+             }
+        if( timeOfDayIsBetween(schedule4.sunset, schedule5.sunset, currTimeD, location.timeZone))
+           { 
+            runIn(timeout4, motionOff, [overwrite: true])
+            if (debug) log.trace  "$device scheduled to turn off in $timeout4"
+            }
+        if( timeOfDayIsBetween(schedule5.sunset, schedule6, currTimeD, location.timeZone))
+            {
+            runIn(timeout5, motionOff, [overwrite: true])
+            if (debug) log.trace  "$device scheduled to turn off in $timeout5"
+            }
+        if( timeOfDayIsBetween(schedule6, schedule1.sunrise, currTimeD, location.timeZone))
+            {
+            runIn(timeout26, motionOff, [overwrite: true])
+            if (debug) log.trace  "$device scheduled to turn off in $timeout6"
+            }
+
+}
+
+//Schuled Are Lights On Check
+void areLightsOn() {
+    if (debug) log.trace "Are Lights On?"
+    Date currTimeD, startTimeD1, endTimeD1, startTimeD2, endTimeD2, startTimeD3, endTimeD3, startTimeD4, endTimeD4, startTimeD5, endTimeD5, transition1start
+    currTimeD = new Date()
+    schedule1 = getSunriseAndSunset(sunriseOffset: schedule1start)
+    schedule12 = schedule1.sunrise.format('hh:mm aa', location.timeZone)
+    
+    
+    schedule1Rise = (schedule12 - 30) 
+    
+    log.info  schedule1Rise
+    def schedule2 = getSunriseAndSunset(sunriseOffset: schedule2start)
+    def schedule3 = getSunriseAndSunset(sunsetOffset: schedule3start)
+    def schedule4 = getSunriseAndSunset(sunsetOffset: schedule4start)
+    def schedule5 = getSunriseAndSunset(sunsetOffset: schedule5start)
+    def schedule6 = timeToday(schedule6start, location.timeZone)
+
+
+    transition1start = timeToday(transition1start, location.timeZone)
+    transition2start = timeToday(transition2start, location.timeZone)
+    transition3start = timeToday(transition3start, location.timeZone)
+    transition4start = timeToday(transition4start, location.timeZone)
+    transition5start = timeToday(transition5start, location.timeZone)
+    transition6start = timeToday(transition6start, location.timeZone)
+    
+    
+    if(device.currentValue("switch") == "on"){
+    if (debug) log.trace "Yeah, Lights were On"
+        if(enableCircadian){
+            if( timeOfDayIsBetween(schedule1.sunrise, schedule2.sunrise, currTimeD, location.timeZone))
+                {    
+                if (enableColor) sendEvent(name: "colorTemperature", value: "6410", isStateChange: true, type: "scheduled", unit:  "K", descriptionText: "Scheduled Energize for $device at 7:30 am.")  
+                if (enableLevel) sendEvent(name: "level", value: "100", type: "scheduled", isStateChange: true)
+                sendEvent(name: "scene", value: "Energize", type: "scheduled",isStateChange: true)
+                if (debug) log.info  "Scheduled transition, ${transition1scene}, has begun."
+                }
+            if( timeOfDayIsBetween(schedule2.sunrise, schedule3.sunset, currTimeD, location.timeZone))
+                {
+                if (enableColor) sendEvent(name: "colorTemperature", value: "4291", isStateChange: true, type: "scheduled", unit:  "K", descriptionText: "Scheduled Concentrate for $device at 10:00 am.")
+                if (enableLevel) sendEvent(name: "level", value: "100", type: "scheduled",isStateChange: true)
+                sendEvent(name: "scene", value: "Concentrate", type: "scheduled", isStateChange: true)
+                if (debug) log.info  "Scheduled transition, ${transition2scene}, has begun."
+                }
+            if( timeOfDayIsBetween(schedule3.sunset, schedule4.sunset, currTimeD, location.timeZone))
+                {
+                if (enableColor) sendEvent(name: "colorTemperature", value: "2890", isStateChange: true, type: "scheduled", unit:  "K", descriptionText: "Scheduled Read for $device at 5:00 pm.")
+                if (enableLevel) sendEvent(name: "level", value: "100", type: "scheduled", isStateChange: true)
+                sendEvent(name: "scene", value: "Read", type: "scheduled", isStateChange: true)
+                if (debug) log.info  "Scheduled transition, ${transition3scene}, has begun."
+                }
+            if( timeOfDayIsBetween(schedule4.sunset, schedule5.sunset, currTimeD, location.timeZone))
+                {
+                if (enableColor) sendEvent(name: "colorTemperature", value: "2237", isStateChange: true, type: "scheduled", unit:  "K", descriptionText: "Scheduled Relax for $device at 8:00 pm.")
+                if (enableLevel) sendEvent(name: "level", value: "60", type: "scheduled", isStateChange: true)
+                sendEvent(name: "scene", value: "Relax", type: "scheduled", isStateChange: true)
+                if (debug) log.info  "Scheduled transition, ${transition4scene}, has begun."
+                }
+            if( timeOfDayIsBetween(schedule5.sunset, schedule6, currTimeD, location.timeZone))
+                {
+                if (transition5colorBool) sendEvent(name: "colorTemperature", value: "1700", isStateChange: true, type: "scheduled", unit:  "K", descriptionText: "$device pushed between 11:00 pm & 7:30 am. Nightlight")
+                if (enableLevel) sendEvent(name: "level", value: "40", type: "scheduled", isStateChange: true)
+                sendEvent(name: "scene", value: "Nightlight", type: "scheduled", isStateChange: true)
+                if (debug) log.info  "Scheduled transition, ${transition5scene}, has begun."
+                }
+            if( timeOfDayIsBetween(schedule6, schedule1.sunrise, currTimeD, location.timeZone))
+                {
+                if (transition6colorBool) sendEvent(name: "colorTemperature", value: "1700", isStateChange: true, unit:  "K", descriptionText: "$device pushed between 11:00 pm & 7:30 am. Nightlight")
+                if (enableLevel) sendEvent(name: "level", value: "20", type: "scheduled", isStateChange: true)
+                sendEvent(name: "scene", value: "Nightlight", type: "scheduled", isStateChange: true)
+                if (debug) log.info  "Scheduled transition, ${transition6scene}, has begun."
+                }
+        } 
+    }else
+    {if (debug) log.debug "No, Lights were Not On"}
+}
+
+
+                                                                                                                                                ///////Color Temperature
+void colorTimeOfDay() {
+    if (trace) log.trace "Color adjusting from Physical Touch"
+    currTimeD = new Date()
+    def schedule1 = getSunriseAndSunset(sunriseOffset: schedule1start)
+    def schedule2 = getSunriseAndSunset(sunriseOffset: schedule2start)
+    def schedule3 = getSunriseAndSunset(sunsetOffset: schedule3start)
+    def schedule4 = getSunriseAndSunset(sunsetOffset: schedule4start)
+    def schedule5 = getSunriseAndSunset(sunsetOffset: schedule5start)
+    def schedule6 = timeToday(schedule6start, location.timeZone)
+
+    if( timeOfDayIsBetween(schedule1.sunrise, schedule2.sunrise, currTimeD, location.timeZone))
+        {     
+            log.trace "Proper Idendification Of Color from Level Event"
+            if(device.currentValue("colorTemperature") != schedule1colorTemp) {
+            sendEvent(name: "colorTemperature", value: schedule1colorTemp, isStateChange: true, unit:  "K", type: "knob")
+            }
+        }
+    if( timeOfDayIsBetween(schedule2.sunrise, schedule3.sunset, currTimeD, location.timeZone))
+        {    
+            log.trace "Proper Idendification Of Color from Level Event"
+            if(device.currentValue("colorTemperature") != schedule2colorTemp)  {
+            sendEvent(name: "colorTemperature", value: schedule2colorTemp, isStateChange: true, unit:  "K", type: "knob")
+            }
+        }
+    if( timeOfDayIsBetween(schedule3.sunset, schedule4.sunset, currTimeD, location.timeZone))
+        {    
+            log.trace "Proper Idendification Of Color from Level Event"
+            if(device.currentValue("colorTemperature") != schedule3colorTemp)  {
+            sendEvent(name: "colorTemperature", value: schedule3colorTemp, isStateChange: true, unit:  "K", type: "knob")
+            }
+        }
+    if( timeOfDayIsBetween(schedule4.sunset, schedule5.sunset, currTimeD, location.timeZone))
+        {    
+            log.trace "Proper Idendification Of Color from Level Event"
+            if(device.currentValue("colorTemperature") != schedule4colorTemp)  {
+            sendEvent(name: "colorTemperature", value: schedule4colorTemp, isStateChange: true, unit:  "K", type: "knob")
+            }
+        }
+    if( timeOfDayIsBetween(schedule5.sunset, schedule6, currTimeD, location.timeZone))
+        {    
+            log.trace "Proper Idendification Of Color from Level Event"
+            if(device.currentValue("colorTemperature") != schedule5colorTemp)  {
+            sendEvent(name: "colorTemperature", value: schedule5colorTemp, isStateChange: true, unit:  "K", type: "knob")
+            }
+        }
+    if( timeOfDayIsBetween(schedule6, schedule1.sunrise, currTimeD, location.timeZone))
+        {    
+            log.trace "Proper Idendification Of Color from Level Event"
+            if(device.currentValue("colorTemperature") != schedule6colorTemp) {
+            sendEvent(name: "colorTemperature", value: schedule6colorTemp, isStateChange: true, unit:  "K", type: "knob")
+            }
+        }
+}
+void setColorTemperature(value) {
+   if (debug) log.debug("Setting color temperature to $value K")
+   sendEvent(name: "colorTemperature", value: value, unit: "K", isStateChange: true, displayed: "true", descriptionText: "$device color temperature adjusted.")
+}
+                                                                                                                                                            //////Scenes
+def setEnergize(value) {
+    sendEvent(name: "colorTemperature", value: "6410", isStateChange: true, unit:  "K", descriptionText: "$device is set to Energize")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "scene", value: "Energize", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+}
+def setConcentrate(value) {
+    sendEvent(name: "colorTemperature", value: "4291", isStateChange: true, unit:  "K", descriptionText: "$device is set to Concentrate")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "scene", value: "Concentrate", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+}
+def setRead(value)    {
+    sendEvent(name: "colorTemperature", value: "2890", isStateChange: true, unit:  "K", descriptionText: "$device is set to Read")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "scene", value: "Read", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+}
+def setRelax(value) {
+    sendEvent(name: "colorTemperature", value: "2237", isStateChange: true, unit:  "K", descriptionText: "$device is set to Relax")
+    sendEvent(name: "level", value: "60", isStateChange: true)
+    sendEvent(name: "scene", value: "Relax", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+}
+def setNightlight(value) {
+    sendEvent(name: "colorTemperature", value: "1700", isStateChange: true, unit:  "K", descriptionText: "$device is set to Nightlight")
+    sendEvent(name: "level", value: "20", isStateChange: true)
+    sendEvent(name: "scene", value: "Nightlight", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+
+}
+def setNight(value) {
+    sendEvent(name: "colorTemperature", value: "1700", isStateChange: true, unit:  "K", descriptionText: "$device set for night")
+    sendEvent(name: "level", value: "10", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    sendEvent(name: "scene", value: "Night", isStateChange: true)
+}
+void setScene(newScene) {
+ 	switch (newScene){ 	
+	case "Energize":
+    sendEvent(name: "colorTemperature", value: "6410", isStateChange: true, unit:  "K", descriptionText: "$device set for 7 AM")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    sendEvent(name: "scene", value: "Energize", isStateChange: true)
+	break ;
+	case "Concentrate":
+    sendEvent(name: "colorTemperature", value: "4291", isStateChange: true, unit:  "K", descriptionText: "$device set for 10 AM")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    sendEvent(name: "scene", value: "Concentrate", isStateChange: true)
+    break ;
+    case "Read":
+    sendEvent(name: "colorTemperature", value: "2890", isStateChange: true, unit:  "K", descriptionText: "$device set for 5 PM")
+    sendEvent(name: "level", value: "100", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    sendEvent(name: "scene", value: "Read", isStateChange: true)
+    break ;
+    case "Relax":
+    sendEvent(name: "colorTemperature", value: "2237", isStateChange: true, unit:  "K", descriptionText: "$device set for 8 PM")
+    sendEvent(name: "level", value: "60", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    sendEvent(name: "scene", value: "Relax", isStateChange: true)
+	break ;
+    case "Nightlight":
+    sendEvent(name: "colorTemperature", value: "1700", isStateChange: true, unit:  "K", descriptionText: "$device set for 11 PM")
+    sendEvent(name: "level", value: "20", isStateChange: true)
+    sendEvent(name: "switch", value: "on", isStateChange: true)
+    sendEvent(name: "scene", value: "Nightlight", isStateChange: true)
+	break ;
+	}
+}
+                                                                                                                                                          ////Occupation
+def occupied(){
+    timeout1=schedule1timer.toInteger()
+    timeout2=schedule2timer.toInteger()
+    timeout3=schedule3timer.toInteger()
+    timeout4=schedule4timer.toInteger()
+    timeout5=schedule5timer.toInteger()
+    timeout6=schedule6timer.toInteger()
+    currTimeD = new Date()	
+    schedule1 = getSunriseAndSunset(sunriseOffset: schedule1start)
+    schedule2 = getSunriseAndSunset(sunriseOffset: schedule2start)
+    schedule3 = getSunriseAndSunset(sunsetOffset: schedule3start)
+    schedule4 = getSunriseAndSunset(sunsetOffset: schedule4start)
+    schedule5 = getSunriseAndSunset(sunsetOffset: schedule5start)
+    schedule6 = timeToday(schedule6start, location.timeZone)	
+    //guess  = timeToday(guess, location.timeZone)
+    guess2 = schedule6.format('hh:mm', location.timeZone)
+
+    //timeout4 = toDateTime(schedule4timer)
+    guess3 = (guess2 + timeout4)
+    //log.trace "${Calendar.instance.get(Calendar.MINUTE)}"
+        if( timeOfDayIsBetween(schedule1.sunrise, schedule2.sunrise, currTimeD, location.timeZone))
+            {         
+            runIn(timeout1, unoccupied, [overwrite: true])    
+            if (trace) log.trace  "$device is present for $timeout1"
+            }
+        if( timeOfDayIsBetween(schedule2.sunrise, schedule3.sunset, currTimeD, location.timeZone))
+            {
+            runIn(timeout2, unoccupied, [overwrite: true])    
+            if (trace) log.trace  "$device is present for $timeout2"
+
+            }
+        if( timeOfDayIsBetween(schedule3.sunset, schedule4.sunset, currTimeD, location.timeZone))
+            {
+            runIn(timeout3, unoccupied, [overwrite: true])    
+            if (trace) log.trace  "$device is present for $timeout3"
+             }
+        if( timeOfDayIsBetween(schedule4.sunset, schedule5.sunset, currTimeD, location.timeZone))
+           {  
+            runIn(timeout4, unoccupied, [overwrite: true])    
+            if (trace) log.trace  "$device is present for  $timeout4"
+            }
+        if( timeOfDayIsBetween(schedule5.sunset, schedule6, currTimeD, location.timeZone))
+            {
+            runIn(timeout5, unoccupied, [overwrite: true])    
+            if (trace) log.trace  "$device is present for $timeout5"
+            }
+        if( timeOfDayIsBetween(schedule6, schedule1.sunrise, currTimeD, location.timeZone))
+            {
+            runIn(timeout6, unoccupied, [overwrite: true])    
+            if (trace) log.trace  "$device is present for $timeout6"
+            }
+        if(device.currentValue("presence") == "not present") 
+        {
+            sendEvent(name: "presence", value: "present", type: "physical", isStateChange: true, descriptionText: "$device button 1 was pushed")
+        }
+    device.updateSetting("enableMotion",[value: false, type:"bool"])
+
+}
+void unoccupied(){
+    sendEvent(name: "presence", value: "not present", isStateChange: true, descriptionText: "$device Occupancy Timeout")
+    device.updateSetting("enableMotion",[value: true, type:"bool"])	
+}
+                                                                                                                                                          ////Motion
+void setMotionActive(value) {
+    device.updateSetting("enableMotion",[value: true, type:"bool"])	
+    if (trace) log.trace "Motion Lighting Resumed on $device"
+   
+}
+void setMotionInactive(value) {
+    device.updateSetting("enableMotion",[value: false, type:"bool"])
+    if (trace) log.trace "Motion Lighting Paused on $device"
+}
+                                                                                                                                                          ////SHCEDULES
+void showSchedules()  {
+    schedule1 = getSunriseAndSunset(sunriseOffset: schedule1start)
+    schedule1.sunrise = schedule1.sunrise.format('hh:mm aa', location.timeZone)
+    schedule2 = getSunriseAndSunset(sunriseOffset: schedule2start)
+    schedule2.sunrise = schedule2.sunrise.format('hh:mm aa', location.timeZone)
+    schedule3 = getSunriseAndSunset(sunsetOffset: schedule3start)
+    schedule3.sunset = schedule3.sunset.format('hh:mm aa', location.timeZone)
+    schedule4 = getSunriseAndSunset(sunsetOffset: schedule4start)
+    schedule4.sunset = schedule4.sunset.format('hh:mm aa', location.timeZone)
+    schedule5 = getSunriseAndSunset(sunsetOffset: schedule5start)
+    schedule5.sunset = schedule5.sunset.format('hh:mm aa', location.timeZone)
+    schedule6 = timeToday(schedule6start, location.timeZone)
+    schedule6 = schedule6.format('hh:mm aa', location.timeZone)
+   
+    log.info("${schedule6scene} between ${schedule6} and ${schedule1.sunrise} at ${schedule6colorTemp}k and ${schedule6level}%.")
+    log.info("${schedule5scene} between ${schedule5.sunset} and ${schedule6} at ${schedule5colorTemp}k and ${schedule5level}%.")
+    log.info("${schedule4scene} between ${schedule4.sunset} and ${schedule5.sunset } at ${schedule4colorTemp}k and ${schedule4level}%.")
+    log.info("${schedule3scene} between ${schedule3.sunset} and ${schedule4.sunset} at ${schedule3colorTemp}k and ${schedule3level}%.")
+    log.info("${schedule2scene} between ${schedule2.sunrise} and ${schedule3.sunset} at ${schedule2colorTemp}k and ${schedule2level}%.")
+    log.info("${schedule1scene} between ${schedule1.sunrise} and ${schedule2.sunrise} at ${schedule1colorTemp}k and ${schedule1level}%.")
+    log.warn("Scheduled Transitions will take place:")
+    log.info("${schedule6scene} between ${schedule6} and ${schedule1.sunrise} at ${schedule6colorTemp}k and ${schedule6level}%.")
+    log.info("${schedule5scene} between ${schedule5.sunset } and ${schedule6} at ${schedule5colorTemp}k and ${schedule5level}%.")
+    log.info("${schedule4scene} between ${schedule4.sunset} and ${schedule5.sunset} at ${schedule4colorTemp}k and ${schedule4level}%.")
+    log.info("${schedule3scene} between ${schedule3.sunset} and ${schedule4.sunset} at ${schedule3colorTemp}k and ${schedule3level}%.")
+    log.info("${schedule2scene} between ${schedule2start} and ${schedule3.sunset} at ${schedule2colorTemp}k and ${schedule2level}%.")
+    log.info("${schedule1scene} between ${schedule1.sunrise } and ${schedule2.sunrise} at ${schedule1colorTemp}k and ${schedule1level}%.")
+    log.warn("Schedules for Motion On events are as follows:")
+    log.info("${schedule6scene} between ${schedule6} and ${schedule1.sunrise} at ${schedule6colorTemp}k and ${schedule6level}%.")
+    log.info("${schedule5scene} between ${schedule5.sunset } and ${schedule6} at ${schedule5colorTemp}k and ${schedule5level}%.")
+    log.info("${schedule4scene} between ${schedule4.sunset} and ${schedule5.sunset} at ${schedule4colorTemp}k and ${schedule4level}%.")
+    log.info("${schedule3scene} between ${schedule3.sunset} and ${schedule4.sunset} at ${schedule3colorTemp}k and ${schedule3level}%.")
+    log.info("${schedule2scene} between ${schedule2.sunrise } and ${schedule3.sunset} at ${schedule2colorTemp}k and ${schedule2level}%.")
+    log.info("${schedule1scene} between ${schedule1.sunrise } and ${schedule2.sunrise } at ${schedule1colorTemp}k and ${schedule1level}%.")
+    log.warn("Schedules for Digital On events are as follows:")
+    log.info("${schedule6scene} between ${schedule6} and ${schedule1.sunrise} at ${schedule6colorTemp}k and ${schedule6level}%.")
+    log.info("${schedule5scene} between ${schedule5.sunset } and ${schedule6} at ${schedule5colorTemp}k and ${schedule5level}%.")
+    log.info("${schedule4scene} between ${schedule4.sunset} and ${schedule5.sunset} at ${schedule4colorTemp}k and ${schedule4level}%.")
+    log.info("${schedule3scene} between ${schedule3.sunset} and ${schedule4.sunset} at ${schedule3colorTemp}k and ${schedule3level}%.")
+    log.info("${schedule2scene} between ${schedule2.sunrise} and ${schedule3.sunset} at ${schedule2colorTemp}k and ${schedule2level}%.")
+    log.info("${schedule1scene} between ${schedule1.sunrise} and ${schedule2.sunrise} at ${schedule1colorTemp}k and ${schedule1level}%.")
+    log.warn("Schedules for Physical On events are as follows:")
+}
+def showSettings() {
+    log.info("$settings")
+}
+
