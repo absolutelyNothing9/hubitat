@@ -1,0 +1,231 @@
+1. App Definition and Setup
+This defines the app and sets up the secure webhook endpoint.
+
+
+
+/**
+ * Pushcut Server and Sender
+ *
+ * This app creates a secure endpoint (a "server" instance) on your Hubitat hub 
+ * for Pushcut to send commands to (via webhooks/online actions).
+ */
+definition(
+    name: "Pushcut Integration Server",
+    namespace: "YourNamespace", // Replace with your chosen namespace
+    author: "Your Name",
+    description: "Integrates Pushcut by creating a secure webhook listener and sending notifications.",
+    category: "SmartThingsPublic",
+    iconUrl: "...",
+    iconX2Url: "...",
+    // Crucial: Enables the external endpoint URL
+    oauth: true 
+)
+
+// --- Mappings (The "Server" Endpoints) ---
+// This is what allows Pushcut to talk *to* Hubitat.
+// The "app" object refers to the currently running SmartApp instance.
+// The URL will be: https://cloud.hubitat.com/api/webhooks/<appId>/pushcut/command?access_token=<token>&secret=<user_secret>
+mappings {
+    path("/pushcut/command") { action: [
+        GET: "handlePushcutCommand", 
+        POST: "handlePushcutCommand"
+    ]}
+}
+
+preferences {
+    page(name: "mainPage", title: "Pushcut Configuration", install: true, uninstall: true) {
+        section("Pushcut API Key (For sending notifications FROM Hubitat)") {
+            paragraph "This key is required for Hubitat to send notifications to Pushcut."
+            input "pushcutApiKey", "password", title: "Pushcut API Key (API Access)", required: true
+        }
+        
+        section("Hubitat Webhook Secret (For receiving commands TO Hubitat)") {
+            paragraph "Enter a secret key. This will be required in the Pushcut webhook URL for security."
+            input "userSecret", "password", title: "Shared Secret Key (e.g., 'MyHubSecret123')", required: true
+        }
+
+        section("Webhook URL Information") {
+            // Display the URL after the user saves the initial settings
+            if (state.externalURL) {
+                paragraph "Use this URL in your Pushcut Online Action or Shortcut's 'Get Contents of URL' action to send commands to Hubitat. Include the 'secret' parameter."
+                input "webhookUrlDisplay", "text", title: "Your Hubitat Webhook Endpoint", required: false, defaultValue: state.externalURL, width: 6
+            } else {
+                paragraph "Click 'Done' to generate the secure Webhook URL."
+            }
+        }
+        
+        section("Device Control") {
+            // Allows the user to select devices this app is authorized to control
+            input "authorizedSwitches", "capability.switch", title: "Switches to Control via Pushcut", multiple: true, required: false
+            input "authorizedDimmers", "capability.switchLevel", title: "Dimmers to Control via Pushcut", multiple: true, required: false
+        }
+    }
+}
+
+
+
+
+
+2. Core Logic and Server Endpoint Handler
+This handles the setup, maintenance, and, most importantly, the execution of commands received from Pushcut.
+
+def installed() {
+    updated()
+}
+
+def updated() {
+    // Check if the user's secret is set up
+    if (!userSecret) {
+        log.warn "Webhook Secret is not configured. Webhook access is insecure."
+    }
+
+    // Generate the URL for the user to copy/paste into Pushcut
+    // This is the structure: /apps/api/<appId>/pushcut/command
+    def appUrl = getApiServerUrl()
+    def externalURL = "${appUrl}/pushcut/command?access_token=${state.accessToken}"
+    
+    // Append the user's custom secret to the URL for display
+    state.externalURL = "${externalURL}&secret=${userSecret}" 
+    
+    log.info "Pushcut Webhook URL updated: ${state.externalURL}"
+}
+
+// Helper to get the base URL of the Hubitat app API endpoint
+private getApiServerUrl() {
+    def hub = location.hubs[0]
+    return "${hub.getData().localApiUrl}/apps/api/${app.id}"
+}
+
+// =================================================================
+// 🚨 PUSHCUT -> HUBITAT (THE SERVER) HANDLER
+// =================================================================
+def handlePushcutCommand() {
+    def params = request.JSON ?: request.getParams()
+    log.debug "Received Pushcut command: ${params}"
+    
+    // --- 1. Security Check ---
+    if (params.secret != userSecret) {
+        log.warn "Unauthorized access attempt. Secret mismatch."
+        httpError(401, "Unauthorized") // HTTP 401: Unauthorized
+        return
+    }
+
+    // --- 2. Command Processing ---
+    def command = params.command?.toUpperCase()
+    def deviceName = params.device
+    def value = params.value // Used for dimmer level, etc.
+    
+    if (!command || !deviceName) {
+        log.warn "Missing required parameters (command, device)."
+        httpError(400, "Missing parameters (command, device)") // HTTP 400: Bad Request
+        return
+    }
+    
+    // Find the device among the authorized lists
+    def targetDevice = authorizedSwitches.find { it.label == deviceName } ?: authorizedDimmers.find { it.label == deviceName }
+
+    if (!targetDevice) {
+        log.warn "Device not found or not authorized: ${deviceName}"
+        httpError(404, "Device not authorized or found")
+        return
+    }
+
+    // --- 3. Execute Command ---
+    switch (command) {
+        case "ON":
+            targetDevice.on()
+            log.info "Executed ON command on ${deviceName}"
+            break
+        case "OFF":
+            targetDevice.off()
+            log.info "Executed OFF command on ${deviceName}"
+            break
+        case "SETLEVEL":
+            if (targetDevice.hasCapability("SwitchLevel") && value?.isInteger()) {
+                targetDevice.setLevel(value.toInteger())
+                log.info "Executed SETLEVEL ${value} on ${deviceName}"
+            } else {
+                log.warn "SETLEVEL requires a dimmer and a valid integer value."
+            }
+            break
+        case "TOGGLE":
+            targetDevice.currentSwitch == "on" ? targetDevice.off() : targetDevice.on()
+            log.info "Executed TOGGLE command on ${deviceName}"
+            break
+        default:
+            log.warn "Unsupported command: ${command}"
+    }
+
+    // --- 4. Success Response ---
+    httpResponse(status: 200, data: [status: "success", device: deviceName, command: command])
+}
+
+
+// =================================================================
+// ⬆️ HUBITAT -> PUSHCUT (NOTIFICATION SENDER) HANDLER
+// =================================================================
+
+/**
+ * Public method to be called from Hubitat Rules Engine (Rule Machine, etc.)
+ * to send a notification via Pushcut's API.
+ * This function needs to be exposed in the Rule Machine/WebCORE integration 
+ * by the SmartApp being selected.
+ */
+def sendPushcutNotification(notificationName, title = null, text = null, input = null, sound = null) {
+    if (!pushcutApiKey) {
+        log.error "Pushcut API Key is not configured."
+        return
+    }
+
+    def postBody = [
+        title: title,
+        text: text,
+        input: input,
+        sound: sound
+    ]
+    
+    // Remove null/empty keys
+    postBody.findAll { k, v -> v }
+    
+    def apiUrl = "https://api.pushcut.io/v1/notifications/${notificationName}"
+    
+    def params = [
+        uri: apiUrl,
+        body: postBody,
+        headers: [
+            "API-Key": pushcutApiKey,
+            "Content-Type": "application/json"
+        ]
+    ]
+
+    log.debug "Sending Pushcut notification: ${notificationName}"
+    // Use asynchronous post so the Hubitat automation doesn't wait for Pushcut's response
+    asynchttpPost("handlePushcutNotificationResponse", params)
+}
+
+def handlePushcutNotificationResponse(response, data) {
+    if (response.hasError()) {
+        log.error "Pushcut Notification Failed: Status ${response.status} | Error: ${response.getErrorMessage()}"
+    } else if (response.status != 200) {
+        log.warn "Pushcut notification sent, but API returned status: ${response.status}"
+    } else {
+        log.info "Pushcut notification sent successfully."
+    }
+}
+
+
+2. Pushcut Setup (Creating the Server Action)
+1. In the Pushcut iOS app, go to the Automation Server section.
+2. Create a new Online Action (or use a Shortcut with a "Get Contents of URL" action).
+3. Set the action to call the Webhook URL you copied from the Hubitat app.
+4. To control a light named "Desk Light," the body of your POST request to the Hubitat URL would look like this (if using JSON):
+<!-- end list -->
+
+{
+  "secret": "YourSecretKey123",
+  "command": "ON",
+  "device": "Desk Light"
+}
+
+
+
