@@ -153,6 +153,24 @@ def sendAylaCommand(dsn, propertyName, value) {
     }
 }
 
+def refreshChildData(dsn) {
+    def url = "https://ads-field.aylanetworks.com/apiv1/devices/${dsn}/properties.json"
+    def params = [
+        uri: url,
+        headers: ["Authorization": "auth_token ${state.accessToken}", "Content-Type": "application/json"]
+    ]
+    
+    httpGet(params) { resp ->
+        resp.data.each { propWrapper ->
+            def p = propWrapper.property
+            // Pass the data back to the child device driver
+            def child = getChildDevice("Aera-${dsn}")
+            if (child) {
+                child.generateEvent([name: p.name, value: p.value])
+            }
+        }
+    }
+}
 def commandResponse(resp, data) {
     if(resp.status != 201) log.warn "Ayla returned status ${resp.status}"
 }
