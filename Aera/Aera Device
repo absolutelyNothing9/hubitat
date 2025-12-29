@@ -1,75 +1,96 @@
 /**
- * Aera Diffuser Driver for Hubitat
- * Namespace: absolutelyNothing9
- * Name: Aera
+ * Aera Diffuser Driver (Child)
+ * Author: absolutelyNothing
  */
 
 metadata {
-    definition (name: "Aera", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
+    definition (name: "Aera Diffuser", namespace: "absolutelyNothing", author: "absolutelyNothing") {
         capability "Switch"
         capability "Refresh"
-        capability "Switch Level" // Maps scent level 1-10 to 10-100%
+        capability "Actuator"
+        capability "Switch Level" // Maps 1-100% to Aera 1-10 intensity
 
-        command "setScentLevel", [[name:"Level", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"]]]
-        
-        attribute "scentName", "string"
-        attribute "level", "number"
+        command "setIntensity", [[name:"Intensity", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"]]]
+
+        attribute "Scent", "string"
+        attribute "Usage", "string"
+        attribute "Firmware", "string"
+        attribute "Intensity", "string"
+        attribute "cartridgePresence", "string"
     }
 }
 
 // --- Standard Capabilities ---
 
 def on() {
-    log.info "Turning Aera On"
-    parent.sendAylaCommand(device.getDataValue("dsn"), "en", "1")
-    sendEvent(name: "switch", value: "on")
+    log.info "Aera: Sending ON command"
+    parent.sendAylaCommand(device.getDataValue("dsn"), "set_power_state", 1)
 }
 
 def off() {
-    log.info "Turning Aera Off"
-    parent.sendAylaCommand(device.getDataValue("dsn"), "en", "0")
-    sendEvent(name: "switch", value: "off")
+    log.info "Aera: Sending OFF command"
+    parent.sendAylaCommand(device.getDataValue("dsn"), "set_power_state", 0)
 }
 
+/**
+ * Hubitat standard setLevel (1-100)
+ * Translates a slider to Aera's 1-10 scale
+ */
 def setLevel(val) {
-    // Map Hubitat 1-100% to Aera 1-10
     def aeraLvl = Math.max(1, Math.round(val / 10)).toInteger()
-    setScentLevel(aeraLvl)
+    setIntensity(aeraLvl)
 }
 
 // --- Aera Specific Commands ---
 
-def setScentLevel(level) {
-    log.info "Setting Aera Scent Level to ${level}"
-    parent.sendAylaCommand(device.getDataValue("dsn"), "lvl", level.toString())
-    sendEvent(name: "level", value: level)
+def setIntensity(val) {
+    log.info "Aera: Setting Intensity to ${val}"
+    parent.sendAylaCommand(device.getDataValue("dsn"), "intensity_state", val.toInteger())
 }
 
 def refresh() {
-    log.info "Refreshing Aera Status..."
-    // This calls a helper in the SmartApp to fetch current properties
+    log.info "Aera: Refreshing status via SmartApp"
     parent.refreshChildData(device.getDataValue("dsn"))
 }
 
 // --- Data Handling ---
 
-// This is called by the SmartApp when Ayla returns property data
-def parse(description) {
-    log.debug "Driver parse: ${description}"
-}
-
+/**
+ * This is the gateway for the SmartApp to push data into the driver.
+ * The SmartApp calls this function whenever it receives a property update from Ayla.
+ */
 def generateEvent(Map results) {
-    log.debug "Aera Driver received: ${results}"
+    log.debug "Aera Driver Received Event: ${results}"
     
     switch(results.name) {
-        case "en":
-            sendEvent(name: "switch", value: (results.value == "1" ? "on" : "off"))
+        case "power_state":
+            sendEvent(name: "switch", value: (results.value.toInteger() == 1 ? "on" : "off"))
             break
-        case "lvl":
-            sendEvent(name: "level", value: results.value)
+        case "intensity_state":
+            sendEvent(name: "Intensity", value: results.value)
+            // Also update level for the dashboard slider (10% per step)
+            sendEvent(name: "level", value: results.value.toInteger() * 10)
             break
-        case "base_scent_name":
-            sendEvent(name: "scentName", value: results.value)
+        case "fragrance_name":
+            sendEvent(name: "Scent", value: results.value)
+            break
+        case "cartridge_usage":
+            sendEvent(name: "Usage", value: "${results.value}%")
+            break
+        case "cartridge_present":
+            sendEvent(name: "cartridgePresence", value: (results.value.toInteger() == 1 ? "Yes" : "No"))
+            break
+        case "device_fw_version":
+            sendEvent(name: "Firmware", value: results.value)
             break
     }
+}
+
+def installed() {
+    log.info "Aera Child Driver Installed"
+}
+
+def updated() {
+    // No login here anymore! 
+    log.info "Aera Child Driver Updated"
 }
