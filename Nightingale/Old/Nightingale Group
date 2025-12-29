@@ -38,7 +38,7 @@ preferences {
 		}
 
 metadata {
-	definition (name: "Nightingale Group", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+	definition (name: "Nightingale Group", namespace: "absolutelyNothing9", author: "absolutelyNothing") {
         capability "Switch"
         capability "Battery"
         capability "Refresh"
