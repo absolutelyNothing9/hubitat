@@ -1,0 +1,63 @@
+/**
+ * Moodo Box Device Driver (Child)
+ * Author: absolutelyNothing9
+ */
+
+metadata {
+    definition (name: "Moodo Box", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
+        capability "Switch"
+        capability "Switch Level"
+        capability "Refresh"
+
+        command "setSlotLevel", [[name:"Slot", type: "ENUM", constraints: ["0","1","2","3"]], [name:"Level", type: "NUMBER"]]
+        command "shuffleOn"
+        command "shuffleOff"
+
+        attribute "Slot0_Scent", "string"
+        attribute "Slot1_Scent", "string"
+        attribute "Slot2_Scent", "string"
+        attribute "Slot3_Scent", "string"
+        attribute "Online", "string"
+    }
+}
+
+def on() { parent.sendMoodoRequest("boxes/${device.getDataValue('device_key')}", "POST"); sendEvent(name: "switch", value: "on") }
+def off() { parent.sendMoodoRequest("boxes/${device.getDataValue('device_key')}", "DELETE"); sendEvent(name: "switch", value: "off") }
+
+def setLevel(val) {
+    parent.sendMoodoRequest("intensity/${device.getDataValue('device_key')}", "POST", [fan_volume: val.toInteger()])
+}
+
+def setSlotLevel(slot, level) {
+    // Collects current values to avoid resetting other slots
+    def s0 = (slot == "0") ? level : (device.currentValue("Slot0_Speed") ?: 0)
+    def s1 = (slot == "1") ? level : (device.currentValue("Slot1_Speed") ?: 0)
+    def s2 = (slot == "2") ? level : (device.currentValue("Slot2_Speed") ?: 0)
+    def s3 = (slot == "3") ? level : (device.currentValue("Slot3_Speed") ?: 0)
+
+    def body = [
+        device_key: device.getDataValue("device_key").toInteger(),
+        box_status: 1,
+        settings_slot0: [fan_speed: s0, fan_active: true],
+        settings_slot1: [fan_speed: s1, fan_active: true],
+        settings_slot2: [fan_speed: s2, fan_active: true],
+        settings_slot3: [fan_speed: s3, fan_active: true]
+    ]
+    parent.sendMoodoRequest("boxes", "PUT", body)
+}
+
+def shuffleOn() { parent.sendMoodoRequest("shuffle/${device.getDataValue('device_key')}", "POST") }
+def shuffleOff() { parent.sendMoodoRequest("shuffle/${device.getDataValue('device_key')}", "DELETE") }
+
+def refresh() { parent.sendMoodoRequest("boxes/${device.getDataValue('device_key')}", "GET") }
+
+def parseResponse(box) {
+    sendEvent(name: "switch", value: box.box_status == 1 ? "on" : "off")
+    sendEvent(name: "level", value: box.fan_volume)
+    sendEvent(name: "Online", value: box.is_online ? "True" : "False")
+
+    box.settings.eachWithIndex { slot, i ->
+        sendEvent(name: "Slot${i}_Speed", value: slot.fan_speed)
+        sendEvent(name: "Slot${i}_Scent", value: slot.capsule_info.title)
+    }
+}
