@@ -1,13 +1,10 @@
 /**
  * Lutron Aurora Dimmer - Full 6-Schedule Circadian Engine
- * Model: Z3-1BRL
- * Features: Push-to-Sync, 6-Point Schedule, Rotary Debounce
+ * Features: Push-to-Sync, 6-Point Schedule with Level & Color Defaults
  */
 
-import com.hubitat.zigbee.DataType
-
 metadata {
-    definition (name: "Lutron Aurora Dimmer - 6 Schedule", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+    definition (name: "Lutron Aurora Dimmer - Full Restored", namespace: "absolutelyNothing", author: "absolutelyNothing") {
         capability "Actuator"
         capability "Switch"
         capability "Switch Level"
@@ -26,27 +23,42 @@ metadata {
     preferences {
         input(name: "silentTimeAfterPush", type: "number", title: "Ignore rotation after push (ms)", defaultValue: 400)
         
-        // --- 6 SCHEDULE CONFIGURATION ---
-        section("Morning Transitions") {
-            input "s1_start", "string", title: "S1: Early Dawn (Offset from Sunrise)", defaultValue: "-0:30"
-            input "s1_temp", "int", title: "S1 Temp (K)", defaultValue: 2237
-            
-            input "s2_start", "string", title: "S2: Sunrise (Offset from Sunrise)", defaultValue: "0:00"
-            input "s2_temp", "int", title: "S2 Temp (K)", defaultValue: 2890
-            
-            input "s3_start", "string", title: "S3: Morning (Offset from Sunrise)", defaultValue: "1:30"
-            input "s3_temp", "int", title: "S3 Temp (K)", defaultValue: 4291
+        // RESTORED 6-SCHEDULE CONFIGURATION WITH TITLES AND DEFAULTS
+        section("Schedule 1: Early Dawn") {
+            input "schedule1scene", "string", title: "Schedule 1 Scene", defaultValue: "Sunrise"
+            input "schedule1start", "string", title: "Schedule 1 Start (Sunrise Offset)", defaultValue: "-0:30"
+            input "schedule1colorTemp", "int", title: "Schedule 1 Color Temp", defaultValue: 2237, unit: "K"
+            input "schedule1level", "int", title: "Schedule 1 Level", defaultValue: 20
         }
-        
-        section("Day & Evening Transitions") {
-            input "s4_start", "string", title: "S4: Midday (Offset from Sunrise)", defaultValue: "4:30"
-            input "s4_temp", "int", title: "S4 Temp (K)", defaultValue: 6410
-            
-            input "s5_start", "string", title: "S5: Sunset (Offset from Sunset)", defaultValue: "0:00"
-            input "s5_temp", "int", title: "S5 Temp (K)", defaultValue: 2890
-            
-            input "s6_start", "string", title: "S6: Late Night (Offset from Sunset)", defaultValue: "3:00"
-            input "s6_temp", "int", title: "S6 Temp (K)", defaultValue: 2237
+        section("Schedule 2: Sunrise") {
+            input "schedule2scene", "string", title: "Schedule 2 Scene", defaultValue: "Energize"
+            input "schedule2start", "string", title: "Schedule 2 Start (Sunrise Offset)", defaultValue: "0:00"
+            input "schedule2colorTemp", "int", title: "Schedule 2 Color Temp", defaultValue: 2890, unit: "K"
+            input "schedule2level", "int", title: "Schedule 2 Level", defaultValue: 50
+        }
+        section("Schedule 3: Morning") {
+            input "schedule3scene", "string", title: "Schedule 3 Scene", defaultValue: "Concentrate"
+            input "schedule3start", "string", title: "Schedule 3 Start (Sunrise Offset)", defaultValue: "1:30"
+            input "schedule3colorTemp", "int", title: "Schedule 3 Color Temp", defaultValue: 4291, unit: "K"
+            input "schedule3level", "int", title: "Schedule 3 Level", defaultValue: 100
+        }
+        section("Schedule 4: Midday") {
+            input "schedule4scene", "string", title: "Schedule 4 Scene", defaultValue: "Full Daylight"
+            input "schedule4start", "string", title: "Schedule 4 Start (Sunrise Offset)", defaultValue: "4:30"
+            input "schedule4colorTemp", "int", title: "Schedule 4 Color Temp", defaultValue: 6410, unit: "K"
+            input "schedule4level", "int", title: "Schedule 4 Level", defaultValue: 100
+        }
+        section("Schedule 5: Sunset") {
+            input "schedule5scene", "string", title: "Schedule 5 Scene", defaultValue: "Sunset"
+            input "schedule5start", "string", title: "Schedule 5 Start (Sunset Offset)", defaultValue: "0:00"
+            input "schedule5colorTemp", "int", title: "Schedule 5 Color Temp", defaultValue: 2890, unit: "K"
+            input "schedule5level", "int", title: "Schedule 5 Level", defaultValue: 60
+        }
+        section("Schedule 6: Late Night") {
+            input "schedule6scene", "string", title: "Schedule 6 Scene", defaultValue: "Nightlight"
+            input "schedule6start", "string", title: "Schedule 6 Start (Sunset Offset)", defaultValue: "3:00"
+            input "schedule6colorTemp", "int", title: "Schedule 6 Color Temp", defaultValue: 2237, unit: "K"
+            input "schedule6level", "int", title: "Schedule 6 Level", defaultValue: 10
         }
     }
 }
@@ -57,24 +69,20 @@ def parse(String description) {
         if (event.name == "battery") sendEvent(name: "battery", value: event.value, unit: "%")
     } else {
         def descMap = zigbee.parseDescriptionAsMap(description)
-        if (descMap?.clusterInt == 0x0008) {
-            handleRotation(descMap)
-        } else if (descMap?.clusterInt == 0x0006) {
-            handleButton()
-        }
+        if (descMap?.clusterInt == 0x0008) handleRotation(descMap)
+        else if (descMap?.clusterInt == 0x0006) handleButton()
     }
 }
 
 def handleRotation(descMap) {
     state.lastMove = now()
-    // Debounce to prevent "off-click" from triggering a re-on
     if (state.lastMove - (state.lastPush ?: 0) < (silentTimeAfterPush ?: 400)) return
 
     int rawValue = Integer.parseInt(descMap.data[0], 16)
     int level = Math.round(rawValue * (100/254))
     
     state.level = level
-    syncCircadian() // Push-to-Sync logic
+    syncCircadian(false) 
     
     sendEvent(name: "level", value: level, type: "physical")
     sendEvent(name: "switch", value: (level > 0 ? "on" : "off"), type: "physical")
@@ -85,51 +93,48 @@ def handleButton() {
     if (device.currentValue("switch") == "on") {
         sendEvent(name: "switch", value: "off", type: "digital")
     } else {
-        syncCircadian()
+        syncCircadian(true) 
         sendEvent(name: "switch", value: "on", type: "digital")
     }
 }
 
-def syncCircadian() {
+def syncCircadian(forceLevel = false) {
     def now = new Date()
-    // Calculate all 6 points
     def times = [
-        s1: getSunriseAndSunset(sunriseOffset: s1_start).sunrise,
-        s2: getSunriseAndSunset(sunriseOffset: s2_start).sunrise,
-        s3: getSunriseAndSunset(sunriseOffset: s3_start).sunrise,
-        s4: getSunriseAndSunset(sunriseOffset: s4_start).sunrise,
-        s5: getSunriseAndSunset(sunsetOffset: s5_start).sunset,
-        s6: getSunriseAndSunset(sunsetOffset: s6_start).sunset
+        s1: getSunriseAndSunset(sunriseOffset: schedule1start).sunrise,
+        s2: getSunriseAndSunset(sunriseOffset: schedule2start).sunrise,
+        s3: getSunriseAndSunset(sunriseOffset: schedule3start).sunrise,
+        s4: getSunriseAndSunset(sunriseOffset: schedule4start).sunrise,
+        s5: getSunriseAndSunset(sunsetOffset: schedule5start).sunset,
+        s6: getSunriseAndSunset(sunsetOffset: schedule6start).sunset
     ]
     
-    def targetTemp = s6_temp
-    def sceneName = "Night"
+    // Default to Schedule 6 (Late Night) if outside all windows
+    def targetTemp = schedule6colorTemp
+    def targetLvl = schedule6level
+    def sceneName = schedule6scene
 
     if (timeOfDayIsBetween(times.s1, times.s2, now, location.timeZone)) {
-        targetTemp = s1_temp
-        sceneName = "Early Dawn"
+        targetTemp = schedule1colorTemp; targetLvl = schedule1level; sceneName = schedule1scene
     } else if (timeOfDayIsBetween(times.s2, times.s3, now, location.timeZone)) {
-        targetTemp = s2_temp
-        sceneName = "Sunrise Sync"
+        targetTemp = schedule2colorTemp; targetLvl = schedule2level; sceneName = schedule2scene
     } else if (timeOfDayIsBetween(times.s3, times.s4, now, location.timeZone)) {
-        targetTemp = s3_temp
-        sceneName = "Morning Energy"
+        targetTemp = schedule3colorTemp; targetLvl = schedule3level; sceneName = schedule3scene
     } else if (timeOfDayIsBetween(times.s4, times.s5, now, location.timeZone)) {
-        targetTemp = s4_temp
-        sceneName = "Midday Focus"
+        targetTemp = schedule4colorTemp; targetLvl = schedule4level; sceneName = schedule4scene
     } else if (timeOfDayIsBetween(times.s5, times.s6, now, location.timeZone)) {
-        targetTemp = s5_temp
-        sceneName = "Evening Wind Down"
-    } else {
-        targetTemp = s6_temp
-        sceneName = "Late Night Relax"
+        targetTemp = schedule5colorTemp; targetLvl = schedule5level; sceneName = schedule5scene
     }
 
     sendEvent(name: "colorTemperature", value: targetTemp, unit: "K")
     sendEvent(name: "scene", value: sceneName)
+    
+    if (forceLevel) {
+        sendEvent(name: "level", value: targetLvl, unit: "%")
+    }
 }
 
-def on() { syncCircadian(); sendEvent(name: "switch", value: "on") }
+def on() { syncCircadian(true); sendEvent(name: "switch", value: "on") }
 def off() { sendEvent(name: "switch", value: "off") }
-def refresh() { syncCircadian() }
+def refresh() { syncCircadian(false) }
 def installed() { sendEvent(name: "presence", value: "present") }
