@@ -1,0 +1,83 @@
+
+definition(
+    name: "Nightingale Integration",
+    namespace: "absolutelyNothing9",
+    author: "absolutelyNothing9",
+    description: "Integrates Nightingale sound blankets via Ayla Networks.",
+    category: "My Apps"
+)
+
+preferences {
+    page(name: "mainPage")
+    page(name: "authPage")
+}
+
+def mainPage() {
+    return dynamicPage(name: "mainPage", title: "Nightingale Config", install: true, uninstall: true) {
+        section("Credentials") {
+            input "username", "text", title: "Email", required: true
+            input "password", "password", title: "Password", required: true
+        }
+        section {
+            href(name: "authLink", title: "Authorize & Discover", page: "authPage")
+        }
+    }
+}
+
+def authPage() {
+    login()
+    def devices = discoverDevices()
+    return dynamicPage(name: "authPage", title: "Discovery") {
+        section("Devices Found") {
+            if (devices) {
+                devices.each { paragraph "Found: ${it.device.product_name}" }
+            } else { paragraph "No Nightingale devices found." }
+        }
+    }
+}
+
+def login() {
+    def params = [
+        uri: "https://ads-field.aylanetworks.com/users/sign_in.json",
+        body: [user: [email: settings.username, password: settings.password, 
+               application: [app_id: "Nightingale-6348421-id", app_secret: "Nightingale-6348421-secret-M_V_1"]]]
+    ]
+    try {
+        httpPostJson(params) { resp -> state.accessToken = resp.data.access_token }
+    } catch (e) { log.error "Nightingale Login Failed: ${e}" }
+}
+
+def discoverDevices() {
+    def params = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/devices.json",
+        headers: ["Authorization": "auth_token ${state.accessToken}"]
+    ]
+    try {
+        httpGet(params) { resp ->
+            resp.data.each { item ->
+                def d = item.device
+                def dni = "Night-${d.dsn}"
+                if (!getChildDevice(dni)) {
+                    // LOGIC: Check if it is a group or a single unit
+                    def driverName = (d.product_name?.toLowerCase()?.contains("group")) ? "Nightingale Group" : "Nightingale"
+                    
+                    addChildDevice("absolutelyNothing9", driverName, dni, [
+                        label: "Nightingale: ${d.product_name}", 
+                        data: [dsn: d.dsn, isGroup: (driverName == "Nightingale Group")]
+                    ])
+                }
+            }
+            return resp.data
+        }
+    } catch (e) { log.error "Discovery error: ${e}" }
+}
+
+// Helper for Child Drivers
+def sendAylaCommand(dsn, prop, val) {
+    def params = [
+        uri: "https://ads-field.aylanetworks.com/apiv1/properties/${dsn}/datapoints.json",
+        headers: ["Authorization": "auth_token ${state.accessToken}"],
+        body: [datapoint: [value: val]]
+    ]
+    httpPostJson(params) { log.debug "Command successful" }
+}
