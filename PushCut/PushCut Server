@@ -1,13 +1,13 @@
 /**
- * Pushcut Ultimate Integration
- * Includes: Full Server (On/Off/Level/Toggle), Notification Sender, and Widget Manager.
+ * Pushcut Ultimate Integration - COMPLETE VERSION
+ * Includes: Inbound Server, Outbound Notifications, Widget Updates, and Child Device Management.
  */
 
 definition(
     name: "Pushcut Ultimate Integration",
     namespace: "absolutelyNothing",
     author: "absolutelyNothing",
-    description: "The complete server and sender for Pushcut notifications and widgets.",
+    description: "The complete server and sender for Pushcut notifications and widgets with child device support.",
     category: "My Apps",
     oauth: true 
 )
@@ -17,130 +17,124 @@ mappings {
 }
 
 preferences {
-    page(name: "mainPage", title: "Pushcut Ultimate Config", install: true, uninstall: true) {
+    page(name: "mainPage")
+    page(name: "addChildPage")
+}
+
+def mainPage() {
+    return dynamicPage(name: "mainPage", title: "Pushcut Ultimate Config", install: true, uninstall: true) {
         section("API & Security") {
             input "pushcutApiKey", "password", title: "Pushcut API Key (For Outbound)", required: true
-            input "userSecret", "password", title: "Webhook Secret (For Inbound)", required: true
+            input "userSecret", "password", title: "Webhook Secret (For Inbound Server)", required: true
         }
 
-        section("Webhook URL") {
+        section("Inbound Server (Receive from Pushcut)") {
             if (state.accessToken) {
                 def url = "${getFullApiServerUrl()}/pushcut/command?access_token=${state.accessToken}&secret=${userSecret}"
-                paragraph "Use this URL in Pushcut:\n\n**${url}**"
-                input "urlCopy", "text", title: "Copy URL", defaultValue: url
+                paragraph "Use this URL for Pushcut Online Actions:\n\n**${url}**"
             } else {
-                paragraph "Click 'Done' and re-open to generate your secure URL."
+                paragraph "Click 'Done' and re-open to generate your Webhook URL."
             }
+            input "authorizedDevices", "capability.switch", title: "Devices Pushcut can control", multiple: true, required: false
         }
         
-        section("Authorized Devices") {
-            input "authorizedSwitches", "capability.switch", title: "Switches & Dimmers", multiple: true, required: false
+        section("Outbound Devices (Send to Pushcut)") {
+            paragraph "Create virtual devices to trigger specific Notifications or Widgets."
+            href(name: "addChildLink", title: "Add New Pushcut Virtual Device", page: "addChildPage")
+            
+            def children = getChildDevices()
+            if (children) {
+                children.each { child -> paragraph "Managed Device: **${child.label}**" }
+            }
+        }
+    }
+}
+
+def addChildPage() {
+    return dynamicPage(name: "addChildPage", title: "Add Device") {
+        section {
+            input "newDeviceName", "text", title: "Display Name (e.g., Bedroom Widget)", required: true
+            input "pushcutID", "text", title: "Pushcut ID (Exactly as in iOS App)", required: true
+            input "isWidget", "bool", title: "Is this a Widget update?", defaultValue: false
+        }
+        section {
+            action(name: "createNewDevice", title: "Create Device Now", action: "createChild")
         }
     }
 }
 
 // =================================================================
-// 🚨 SERVER: PUSHCUT -> HUBITAT (Inbound Commands)
+// 🚨 INBOUND SERVER LOGIC (Receiving commands)
 // =================================================================
 
 def handlePushcutCommand() {
     def params = request.JSON ?: request.getParams()
     
-    // 1. Security Check
     if (params.secret != userSecret) {
-        log.warn "Unauthorized access attempt. Secret mismatch."
+        log.warn "Unauthorized secret mismatch."
         return httpError(401, "Unauthorized")
     }
 
-    // 2. Parameter Extraction
     def command = params.command?.toUpperCase()
     def deviceName = params.device
-    def value = params.value // For dimmer levels
+    def value = params.value 
     
-    if (!command || !deviceName) return httpError(400, "Missing 'command' or 'device' parameter.")
+    def target = authorizedDevices.find { it.label == deviceName }
+    if (!target) return httpError(404, "Device not authorized.")
 
-    // 3. Find Device
-    def target = authorizedSwitches.find { it.label == deviceName }
-    if (!target) {
-        log.warn "Device not authorized or not found: ${deviceName}"
-        return httpError(404, "Device not found.")
-    }
-
-    // 4. Command Execution Logic (The "Server" Core)
     log.info "Pushcut Server: Executing ${command} on ${deviceName}"
     
     switch (command) {
-        case "ON":
-            target.on()
-            break
-        case "OFF":
-            target.off()
-            break
-        case "TOGGLE":
-            target.currentSwitch == "on" ? target.off() : target.on()
-            break
-        case "SETLEVEL":
-            if (target.hasCapability("SwitchLevel") && value != null) {
-                target.setLevel(value.toInteger())
-            }
-            break
-        default:
-            log.warn "Unsupported command: ${command}"
-            return httpError(400, "Unsupported command.")
+        case "ON": target.on(); break
+        case "OFF": target.off(); break
+        case "TOGGLE": target.currentSwitch == "on" ? target.off() : target.on(); break
+        case "SETLEVEL": if (value) target.setLevel(value.toInteger()); break
     }
 
-    return httpResponse(status: 200, data: [status: "success", device: deviceName, command: command])
+    return httpResponse(status: 200, data: [status: "success"])
 }
 
 // =================================================================
-// ⬆️ SENDER: HUBITAT -> PUSHCUT (Notifications & Widgets)
+// ⬆️ OUTBOUND LOGIC (Sending data to iOS)
 // =================================================================
 
-// For Standard Notifications
-def sendPushcutNotification(notificationName, title = null, text = null) {
+def sendPushcutNotification(notificationName, title, text) {
     def body = [title: title, text: text].findAll { k, v -> v != null }
     sendPushcutRequest("notifications/${notificationName}", body)
 }
 
-// For Widget Content Updates
 def updatePushcutWidget(widgetName, Map contentMap) {
     def body = [content: contentMap]
-    log.info "Pushcut Sender: Updating Widget '${widgetName}'"
     sendPushcutRequest("widgets/${widgetName}", body)
 }
 
-// Centralized HTTP Helper
 private sendPushcutRequest(endpoint, body) {
-    if (!pushcutApiKey) return log.error "Pushcut API Key is missing!"
-    
     def params = [
         uri: "https://api.pushcut.io/v1/${endpoint}",
         body: body,
-        headers: [
-            "API-Key": pushcutApiKey,
-            "Content-Type": "application/json"
-        ]
+        headers: ["API-Key": pushcutApiKey, "Content-Type": "application/json"]
     ]
     asynchttpPost("handlePushcutResponse", params)
 }
 
 def handlePushcutResponse(response, data) {
     if (response.status != 200) log.warn "Pushcut API Error: ${response.status}"
-    else log.info "Pushcut API request successful."
 }
 
 // =================================================================
-// Lifecycle
+// CHILD DEVICE MANAGEMENT
 // =================================================================
-def installed() { initialize() }
-def updated() { initialize() }
 
-def initialize() {
-    if (!state.accessToken) {
-        try {
-            createAccessToken()
-        } catch (e) {
-            log.error "OAuth not enabled for this App. Please enable it in App Settings."
-        }
+def createChild() {
+    def dni = "Pushcut-${pushcutID}"
+    if (!getChildDevice(dni)) {
+        addChildDevice("absolutelyNothing", "Pushcut Universal Device", dni, [
+            label: newDeviceName,
+            data: [targetName: pushcutID, isWidget: isWidget.toString()]
+        ])
     }
 }
+
+def installed() { initialize() }
+def updated() { initialize() }
+def initialize() { if (!state.accessToken) createAccessToken() }
