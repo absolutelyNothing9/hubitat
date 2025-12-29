@@ -128,7 +128,7 @@ def handlePushcutResponse(response, data) {
 def createChild() {
     def dni = "Pushcut-${pushcutID}"
     if (!getChildDevice(dni)) {
-        addChildDevice("absolutelyNothing", "Pushcut Universal Device", dni, [
+        addChildDevice("absolutelyNothing", "Pushcut Device", dni, [
             label: newDeviceName,
             data: [targetName: pushcutID, isWidget: isWidget.toString()]
         ])
