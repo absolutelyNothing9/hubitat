@@ -1,0 +1,50 @@
+/**
+ * Pushcut Universal Device Driver
+ * Create a virtual device for each Pushcut Notification or Widget you want to control.
+ */
+metadata {
+    definition (name: "Pushcut Universal Device", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+        capability "Switch"        // Turning ON sends the notification/widget update
+        capability "Momentary"    // Allows the "Push" command
+        capability "Actuator"
+        
+        attribute "status", "string"
+    }
+
+    preferences {
+        input name: "pushcutType", type: "enum", title: "Action Type", options: ["Notification", "Widget"], defaultValue: "Notification", required: true
+        input name: "targetName", type: "text", title: "Pushcut Item Name (Exactly as in App)", required: true
+        input name: "defaultTitle", type: "text", title: "Default Title (Notifications Only)", defaultValue: "Hubitat Alert"
+        input name: "defaultMessage", type: "text", title: "Default Message / Widget JSON", defaultValue: '{"status":"Active"}', description: "For widgets, enter valid JSON."
+    }
+}
+
+def on() {
+    push()
+}
+
+def off() {
+    sendEvent(name: "switch", value: "off")
+}
+
+def push() {
+    sendEvent(name: "switch", value: "on")
+    log.info "Pushcut Device [${device.label}]: Triggering ${pushcutType} '${targetName}'"
+    
+    if (pushcutType == "Notification") {
+        parent.sendPushcutNotification(targetName, defaultTitle, defaultMessage)
+    } else {
+        // Parse the default message as JSON for the widget
+        try {
+            def slurper = new groovy.json.JsonSlurper()
+            def widgetData = slurper.parseText(defaultMessage)
+            parent.updatePushcutWidget(targetName, widgetData)
+        } catch (e) {
+            log.error "Invalid JSON in defaultMessage: ${e}"
+        }
+    }
+    
+    // Reset switch state after a moment (Momentary behavior)
+    runIn(1, off)
+    sendEvent(name: "status", value: "Sent at ${new Date().format('HH:mm:ss')}")
+}
