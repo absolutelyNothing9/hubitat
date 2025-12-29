@@ -1,0 +1,75 @@
+/**
+ * Aera Diffuser Driver for Hubitat
+ * Namespace: absolutelyNothing9
+ * Name: Aera
+ */
+
+metadata {
+    definition (name: "Aera", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
+        capability "Switch"
+        capability "Refresh"
+        capability "Switch Level" // Maps scent level 1-10 to 10-100%
+
+        command "setScentLevel", [[name:"Level", type: "ENUM", constraints: ["1","2","3","4","5","6","7","8","9","10"]]]
+        
+        attribute "scentName", "string"
+        attribute "level", "number"
+    }
+}
+
+// --- Standard Capabilities ---
+
+def on() {
+    log.info "Turning Aera On"
+    parent.sendAylaCommand(device.getDataValue("dsn"), "en", "1")
+    sendEvent(name: "switch", value: "on")
+}
+
+def off() {
+    log.info "Turning Aera Off"
+    parent.sendAylaCommand(device.getDataValue("dsn"), "en", "0")
+    sendEvent(name: "switch", value: "off")
+}
+
+def setLevel(val) {
+    // Map Hubitat 1-100% to Aera 1-10
+    def aeraLvl = Math.max(1, Math.round(val / 10)).toInteger()
+    setScentLevel(aeraLvl)
+}
+
+// --- Aera Specific Commands ---
+
+def setScentLevel(level) {
+    log.info "Setting Aera Scent Level to ${level}"
+    parent.sendAylaCommand(device.getDataValue("dsn"), "lvl", level.toString())
+    sendEvent(name: "level", value: level)
+}
+
+def refresh() {
+    log.info "Refreshing Aera Status..."
+    // This calls a helper in the SmartApp to fetch current properties
+    parent.refreshChildData(device.getDataValue("dsn"))
+}
+
+// --- Data Handling ---
+
+// This is called by the SmartApp when Ayla returns property data
+def parse(description) {
+    log.debug "Driver parse: ${description}"
+}
+
+def generateEvent(Map results) {
+    log.debug "Aera Driver received: ${results}"
+    
+    switch(results.name) {
+        case "en":
+            sendEvent(name: "switch", value: (results.value == "1" ? "on" : "off"))
+            break
+        case "lvl":
+            sendEvent(name: "level", value: results.value)
+            break
+        case "base_scent_name":
+            sendEvent(name: "scentName", value: results.value)
+            break
+    }
+}
