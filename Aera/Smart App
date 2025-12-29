@@ -155,7 +155,7 @@ def createChildDevice(deviceData, brand) {
     if (!getChildDevice(dni)) {
         try {
             // Both brands use the same handler; the handler will check the 'brand' data point
-            addChildDevice("absolutelyNothing9", "Ayla Device Handler", dni, [
+            addChildDevice("absolutelyNothing9", "Aera", dni, [
                 "label": "${brand}: ${deviceData.product_name}",
                 "isComponent": false,
                 "name": deviceData.model,
