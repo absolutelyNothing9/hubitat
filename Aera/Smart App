@@ -1,0 +1,104 @@
+/**
+ * Ayla Networks Integration for Hubitat
+ * Author: Your Name
+ */
+
+definition(
+    name: "Ayla Networks Integration",
+    namespace: "absolutelyNothing9",
+    author: "absolutelyNothing9",
+    description: "Integrates Ayla Networks devices with Hubitat Elevation.",
+    category: "My Apps",
+    iconUrl: "",
+    iconX2Url: ""
+)
+
+preferences {
+    page(name: "mainPage")
+    page(name: "authPage")
+}
+
+def mainPage() {
+    return dynamicPage(name: "mainPage", title: "Ayla Networks", install: true, uninstall: true) {
+        section("Ayla Credentials") {
+            input "username", "text", title: "Ayla Email", required: true
+            input "password", "password", title: "Ayla Password", required: true
+            input "appId", "text", title: "Ayla App ID", required: true
+            input "appSecret", "password", title: "Ayla App Secret", required: true
+        }
+        section("Status") {
+            if (state.accessToken) {
+                paragraph "Authenticated: YES"
+                submitOnChange: true
+            } else {
+                paragraph "Status: Not Connected"
+            }
+            href(name: "authLink", title: "Test Connection", page: "authPage", description: "Click to authorize with Ayla")
+        }
+    }
+}
+
+def authPage() {
+    def loginStatus = login()
+    return dynamicPage(name: "authPage", title: "Connection Test") {
+        section {
+            paragraph "${loginStatus}"
+        }
+    }
+}
+
+// --- Authorization Logic ---
+
+def login() {
+    log.debug "Attempting to login to Ayla Networks..."
+    
+    // Ayla User API endpoint (Verify your specific region, e.g., US, EU, CN)
+    def loginUrl = "https://ads-field.aylanetworks.com/users/sign_in.json"
+    
+    def params = [
+        uri: loginUrl,
+        headers: [
+            "Content-Type": "application/json"
+        ],
+        body: [
+            user: [
+                email: settings.username,
+                password: settings.password,
+                application: [
+                    app_id: settings.appId,
+                    app_secret: settings.appSecret
+                ]
+            ]
+        ]
+    ]
+
+    try {
+        httpPostJson(params) { resp ->
+            if (resp.status == 200) {
+                state.accessToken = resp.data.access_token
+                state.refreshToken = resp.data.refresh_token
+                state.tokenExpires = now() + (resp.data.expires_in * 1000)
+                log.info "Ayla Auth Successful. Token stored."
+                return "Successfully connected to Ayla!"
+            } else {
+                log.error "Ayla Auth Failed: ${resp.status}"
+                return "Login failed. Check logs."
+            }
+        }
+    } catch (e) {
+        log.error "Exception during Ayla login: $e"
+        return "Error connecting to Ayla: $e"
+    }
+}
+
+def installed() {
+    initialize()
+}
+
+def updated() {
+    initialize()
+}
+
+def initialize() {
+    // Schedule token refresh or device discovery here
+}
