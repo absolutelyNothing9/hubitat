@@ -3,7 +3,7 @@
  */
 
 metadata {
-    definition (name: "Nightingale Device Handler", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
+    definition (name: "Nightingale", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
         capability "Switch"
         capability "Refresh"
         capability "AudioVolume" // Standard capability for volume
