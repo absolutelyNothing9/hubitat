@@ -1,0 +1,175 @@
+/**
+ * Hatch Rest (Cloud)
+ * Community Port based on homebridge-hatch-baby-rest logic
+ *
+ * Disclaimer: This is an unofficial driver. Hatch API is closed and subject to change.
+ */
+metadata {
+    definition (name: "Hatch Rest Cloud", namespace: "community", author: "GeminiPort") {
+        capability "Switch"
+        capability "AudioVolume"
+        capability "Refresh"
+        
+        // Custom command to set specific routine/track if needed
+        command "setVolume", ["NUMBER"]
+    }
+
+    preferences {
+        section("Credentials") {
+            input "email", "text", title: "Hatch Account Email", required: true
+            input "password", "password", title: "Hatch Account Password", required: true
+        }
+        section("Settings") {
+            input "macAddress", "text", title: "Device MAC Address (e.g. AA:BB:CC...)", required: true, description: "Found in Hatch App under Device Info"
+            input "logEnable", "bool", title: "Enable Debug Logging", defaultValue: true
+        }
+    }
+}
+
+// --- Variables ---
+import groovy.json.JsonSlurper
+
+String getApiUrl() { return "https://api.hatchbaby.com" }
+
+// --- Standard Capabilities ---
+
+def on() {
+    if(logEnable) log.debug "Turning On..."
+    // Typically 'on' for Hatch means resuming the last track or a default
+    // We send a command to set isPowered: true
+    sendCommand([isPowered: true])
+}
+
+def off() {
+    if(logEnable) log.debug "Turning Off..."
+    sendCommand([isPowered: false])
+}
+
+def setVolume(volumeLevel) {
+    if(logEnable) log.debug "Setting volume to ${volumeLevel}"
+    // Hatch typically expects volume 0-100
+    sendCommand([volume: volumeLevel])
+}
+
+def refresh() {
+    if(logEnable) log.debug "Refreshing device state..."
+    getDeviceState()
+}
+
+def updated() {
+    log.info "Preferences updated. Logging in..."
+    login()
+}
+
+// --- API & Helper Methods ---
+
+def login() {
+    if(!email || !password) {
+        log.error "Missing Email or Password in preferences."
+        return
+    }
+
+    def params = [
+        uri: "${getApiUrl()}/service/app/token",
+        contentType: "application/json",
+        body: [
+            email: email,
+            password: password
+        ]
+    ]
+
+    try {
+        httpPost(params) { response ->
+            if (response.status == 200) {
+                def data = response.data
+                // Save the token to state so we can use it later
+                state.authToken = data.accessToken
+                if(logEnable) log.debug "Login Successful. Token obtained."
+            } else {
+                log.error "Login failed. Status: ${response.status}"
+            }
+        }
+    } catch (e) {
+        log.error "Login Error: ${e}"
+    }
+}
+
+def sendCommand(Map commandBody) {
+    // If we don't have a token, try to login first
+    if(!state.authToken) {
+        login()
+        pauseExecution(1000) // Give it a sec to get the token
+    }
+    
+    // We need the MAC address formatted correctly (lowercase, no colons usually, but depends on specific endpoint)
+    // The Homebridge plugin usually queries the device ID first. 
+    // For simplicity, we are trying to hit the deviceIOT endpoint directly if possible, 
+    // but the standard REST control usually goes to:
+    // PUT /service/app/device/riot/{MAC_ADDRESS}
+    
+    // Clean MAC address (remove colons, make lowercase)
+    def cleanMac = macAddress.replace(":", "").toUpperCase() 
+
+    def params = [
+        uri: "${getApiUrl()}/service/app/device/riot/${cleanMac}",
+        headers: [
+            "Authorization": "Bearer ${state.authToken}",
+            "Content-Type": "application/json"
+        ],
+        body: commandBody
+    ]
+
+    if(logEnable) log.debug "Sending command: ${commandBody} to ${cleanMac}"
+
+    try {
+        httpPut(params) { response ->
+            if (response.status == 200) {
+                if(logEnable) log.debug "Command sent successfully."
+                
+                // Update local status immediately for responsiveness
+                if(commandBody.isPowered != null) {
+                    sendEvent(name: "switch", value: commandBody.isPowered ? "on" : "off")
+                }
+                if(commandBody.volume != null) {
+                    sendEvent(name: "volume", value: commandBody.volume)
+                }
+            } else {
+                log.warn "Command failed: ${response.status}. Token might be expired."
+                // Optional: Retry logic could go here (call login() then retry)
+            }
+        }
+    } catch (e) {
+        log.error "Command Error: ${e}"
+    }
+}
+
+def getDeviceState() {
+    if(!state.authToken) login()
+    
+    def params = [
+        uri: "${getApiUrl()}/service/app/devices", // Gets all devices to find ours
+        headers: [
+            "Authorization": "Bearer ${state.authToken}"
+        ]
+    ]
+
+    try {
+        httpGet(params) { response ->
+            if(response.status == 200) {
+                def devices = response.data
+                // Find our device by MAC
+                def myDevice = devices.find { it.macAddress.replace(":","").toUpperCase() == macAddress.replace(":","").toUpperCase() }
+                
+                if(myDevice) {
+                    if(logEnable) log.debug "Device found: ${myDevice}"
+                    sendEvent(name: "switch", value: myDevice.isPowered ? "on" : "off")
+                    sendEvent(name: "volume", value: myDevice.volume)
+                } else {
+                    log.warn "Device with MAC ${macAddress} not found in Hatch account."
+                }
+            }
+        }
+    } catch (e) {
+        log.error "GetState Error: ${e}"
+    }
+}
