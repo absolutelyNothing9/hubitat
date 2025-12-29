@@ -1,8 +1,8 @@
 definition(
-    name: "Smart Wake-Up Manager",
-    namespace: "custom",
-    author: "AI Thought Partner",
-    description: "Triggers lights and music via HTTP, verified by Withings Sleep.",
+    name: "Smart Wake-Up Manager (Scheduled)",
+    namespace: "absolutelyNothing9",
+    author: "absolutelyNothing9",
+    description: "Schedules alarms via HTTP with Hue, Sonos, and Withings integration.",
     category: "Convenience",
     iconUrl: "",
     iconX2Url: ""
@@ -14,9 +14,6 @@ preferences {
 
 def mainPage() {
     dynamicPage(name: "mainPage", install: true, uninstall: true) {
-        section("Trigger Settings") {
-            paragraph "Your Endpoint URL will be shown after clicking Done. Use this to trigger the alarm."
-        }
         section("Hue Lighting") {
             input "hueLights", "capability.switchLevel", title: "Select Hue Lights", multiple: true
             input "hueScene", "capability.pushableButton", title: "Hue Scene Activator (CoCoHue)", required: false
@@ -30,60 +27,101 @@ def mainPage() {
         }
         section("Withings Sleep Verification") {
             input "sleepTracker", "capability.presenceSensor", title: "Withings Sleep Pad"
-            input "checkDelay", "number", title: "Minutes to wait before checking if out of bed", defaultValue: 15
+            input "checkDelay", "number", title: "Minutes to wait after alarm to check if out of bed", defaultValue: 15
             input "notOutAction", "enum", title: "If still in bed...", options: ["Flash Lights", "Max Volume", "None"], defaultValue: "None"
         }
     }
 }
 
-// HTTP Endpoint Mapping
 mappings {
-    path("/triggerAlarm") { action: [GET: "handleAlarmTrigger"] }
+    path("/setAlarm") { action: [GET: "handleSetAlarm"] }
+    path("/dismissAlarm") { action: [GET: "handleDismiss"] }
 }
 
-def installed() { createAccessToken() }
-def updated() { if(!state.accessToken) createAccessToken() }
+// --- HTTP HANDLERS ---
 
-def handleAlarmTrigger() {
-    log.info "Alarm HTTP Request Received!"
-    startWakeUpSequence()
-    return [status: "success", message: "Wake-up sequence initiated"]
+def handleSetAlarm() {
+    // Expects URL param: /setAlarm?time=HH:mm (24hr format)
+    def alarmTime = params.time 
+    if (!alarmTime) return [status: "error", message: "No time provided. Use ?time=HH:mm"]
+
+    log.info "Received request to schedule alarm for ${alarmTime}"
+    
+    // Clear any existing scheduled alarms
+    unschedule("startWakeUpSequence")
+    
+    // Schedule the new time
+    schedule("0 ${alarmTime.split(":")[1]} ${alarmTime.split(":")[0]} * * ?", startWakeUpSequence)
+    
+    return [status: "success", message: "Alarm scheduled for ${alarmTime}"]
 }
+
+def handleDismiss() {
+    log.info "Alarm Dismissed/Stopped via HTTP!"
+    state.alarmActive = false
+    
+    // Kill all scheduled fades and bed checks
+    unschedule("startWakeUpSequence")
+    unschedule("verifyOutOfBed")
+    unschedule("setVolStep")
+    unschedule("setLevelStep")
+    
+    // Reset Devices
+    hueLights.off()
+    sonosDevice.stop()
+    
+    return [status: "success", message: "Alarm cancelled and devices silenced."]
+}
+
+// --- CORE LOGIC ---
 
 def startWakeUpSequence() {
-    // 1. Start Hue Lights
+    log.info "Wake-up sequence starting now!"
+    state.alarmActive = true
+    
+    // 1. Lights
     if (hueScene) hueScene.push(1)
-    fadeLevel(hueLights, 0, 100, lightFadeTime)
+    runIn(5, "startLightFade")
     
-    // 2. Start Sonos
+    // 2. Sonos
     sonosDevice.playTrack(sonosPlaylist)
-    fadeVolume(sonosDevice, 0, maxVolume, audioFadeTime)
+    runIn(5, "startAudioFade")
     
-    // 3. Schedule Bed Check
+    // 3. Bed Check
     runIn(checkDelay * 60, "verifyOutOfBed")
 }
 
 def verifyOutOfBed() {
-    if (sleepTracker.currentValue("presence") == "present") {
+    if (state.alarmActive && sleepTracker.currentValue("presence") == "present") {
         log.warn "User is still in bed! Executing backup plan."
-        if (notOutAction == "Flash Lights") {
-            hueLights.flash()
-        } else if (notOutAction == "Max Volume") {
-            sonosDevice.setVolume(70)
-        }
-    } else {
-        log.info "User is out of bed. Success."
+        if (notOutAction == "Flash Lights") hueLights.flash()
+        if (notOutAction == "Max Volume") sonosDevice.setVolume(70)
     }
 }
 
-// Helper for Fading (Loops)
-def fadeVolume(device, startVol, endVol, duration) {
-    def steps = 10
-    def delay = (duration * 60) / steps
-    def volStep = (endVol - startVol) / steps
-    
-    (1..steps).each { i ->
-        def newVol = startVol + (volStep * i)
-        runIn((delay * i).toInteger(), "setVol", [data: [vol: newVol, dev: device.id]])
+// --- FADING HELPERS ---
+
+def startLightFade() {
+    def stepSize = 10
+    def interval = (lightFadeTime * 60) / (100 / stepSize)
+    for (int i = 1; i <= (100/stepSize); i++) {
+        runIn((i * interval).toInteger(), "setLevelStep", [data: [lvl: i * stepSize]])
     }
+}
+
+def setLevelStep(data) {
+    if (state.alarmActive) hueLights.setLevel(data.lvl)
+}
+
+def startAudioFade() {
+    def steps = 10
+    def interval = (audioFadeTime * 60) / steps
+    def volStep = maxVolume / steps
+    for (int i = 1; i <= steps; i++) {
+        runIn((i * interval).toInteger(), "setVolStep", [data: [vol: i * volStep]])
+    }
+}
+
+def setVolStep(data) {
+    if (state.alarmActive) sonosDevice.setVolume(data.vol)
 }
