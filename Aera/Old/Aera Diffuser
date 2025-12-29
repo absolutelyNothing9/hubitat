@@ -23,7 +23,7 @@ preferences {
 		}
 
 metadata {
-	definition (name: "Aera Diffuser", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+	definition (name: "Aera Diffuser", namespace: "absolutelyNothing9", author: "absolutelyNothing") {
         capability "Switch"
         capability "Refresh"
         capability "Actuator"
