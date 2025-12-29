@@ -1,57 +1,137 @@
 /**
- * Pushcut Integration Server
- * Author: absolutelyNothing
- * Features: Bi-directional Pushcut support, OAuth Webhook Listener, Async Notification Sender
+ * Pushcut Ultimate Integration
+ * Includes: Full Server (On/Off/Level/Toggle), Notification Sender, and Widget Manager.
  */
 
 definition(
-    name: "Pushcut Integration Server",
+    name: "Pushcut Ultimate Integration",
     namespace: "absolutelyNothing",
     author: "absolutelyNothing",
-    description: "Secure webhook listener for Pushcut commands and async notification sender.",
+    description: "The complete server and sender for Pushcut notifications and widgets.",
     category: "My Apps",
-    iconUrl: "",
-    iconX2Url: "",
     oauth: true 
 )
 
 mappings {
-    path("/pushcut/command") { 
-        action: [ GET: "handlePushcutCommand", POST: "handlePushcutCommand" ]
-    }
+    path("/pushcut/command") { action: [ GET: "handlePushcutCommand", POST: "handlePushcutCommand" ] }
 }
 
 preferences {
-    page(name: "mainPage", title: "Pushcut Configuration", install: true, uninstall: true) {
-        section("Pushcut API Key (Outbound)") {
-            paragraph "Required for Hubitat to send notifications to your iOS devices."
-            input "pushcutApiKey", "password", title: "Pushcut API Key", required: true
-        }
-        
-        section("Webhook Security (Inbound)") {
-            paragraph "This secret must be included in your Pushcut Webhook URL parameters."
-            input "userSecret", "password", title: "Shared Secret Key", required: true
+    page(name: "mainPage", title: "Pushcut Ultimate Config", install: true, uninstall: true) {
+        section("API & Security") {
+            input "pushcutApiKey", "password", title: "Pushcut API Key (For Outbound)", required: true
+            input "userSecret", "password", title: "Webhook Secret (For Inbound)", required: true
         }
 
-        section("Webhook URL Information") {
+        section("Webhook URL") {
             if (state.accessToken) {
                 def url = "${getFullApiServerUrl()}/pushcut/command?access_token=${state.accessToken}&secret=${userSecret}"
-                paragraph "Copy this URL into Pushcut:\n\n**${url}**"
-                input "urlDisplay", "text", title: "Endpoint URL", defaultValue: url, required: false
+                paragraph "Use this URL in Pushcut:\n\n**${url}**"
+                input "urlCopy", "text", title: "Copy URL", defaultValue: url
             } else {
-                paragraph "Click 'Done' and re-open this app to generate the secure Webhook URL."
+                paragraph "Click 'Done' and re-open to generate your secure URL."
             }
         }
         
-        section("Device Authorization") {
-            input "authorizedSwitches", "capability.switch", title: "Switches", multiple: true, required: false
-            input "authorizedDimmers", "capability.switchLevel", title: "Dimmers", multiple: true, required: false
+        section("Authorized Devices") {
+            input "authorizedSwitches", "capability.switch", title: "Switches & Dimmers", multiple: true, required: false
         }
     }
 }
 
-// --- Lifecycle ---
+// =================================================================
+// 🚨 SERVER: PUSHCUT -> HUBITAT (Inbound Commands)
+// =================================================================
 
+def handlePushcutCommand() {
+    def params = request.JSON ?: request.getParams()
+    
+    // 1. Security Check
+    if (params.secret != userSecret) {
+        log.warn "Unauthorized access attempt. Secret mismatch."
+        return httpError(401, "Unauthorized")
+    }
+
+    // 2. Parameter Extraction
+    def command = params.command?.toUpperCase()
+    def deviceName = params.device
+    def value = params.value // For dimmer levels
+    
+    if (!command || !deviceName) return httpError(400, "Missing 'command' or 'device' parameter.")
+
+    // 3. Find Device
+    def target = authorizedSwitches.find { it.label == deviceName }
+    if (!target) {
+        log.warn "Device not authorized or not found: ${deviceName}"
+        return httpError(404, "Device not found.")
+    }
+
+    // 4. Command Execution Logic (The "Server" Core)
+    log.info "Pushcut Server: Executing ${command} on ${deviceName}"
+    
+    switch (command) {
+        case "ON":
+            target.on()
+            break
+        case "OFF":
+            target.off()
+            break
+        case "TOGGLE":
+            target.currentSwitch == "on" ? target.off() : target.on()
+            break
+        case "SETLEVEL":
+            if (target.hasCapability("SwitchLevel") && value != null) {
+                target.setLevel(value.toInteger())
+            }
+            break
+        default:
+            log.warn "Unsupported command: ${command}"
+            return httpError(400, "Unsupported command.")
+    }
+
+    return httpResponse(status: 200, data: [status: "success", device: deviceName, command: command])
+}
+
+// =================================================================
+// ⬆️ SENDER: HUBITAT -> PUSHCUT (Notifications & Widgets)
+// =================================================================
+
+// For Standard Notifications
+def sendPushcutNotification(notificationName, title = null, text = null) {
+    def body = [title: title, text: text].findAll { k, v -> v != null }
+    sendPushcutRequest("notifications/${notificationName}", body)
+}
+
+// For Widget Content Updates
+def updatePushcutWidget(widgetName, Map contentMap) {
+    def body = [content: contentMap]
+    log.info "Pushcut Sender: Updating Widget '${widgetName}'"
+    sendPushcutRequest("widgets/${widgetName}", body)
+}
+
+// Centralized HTTP Helper
+private sendPushcutRequest(endpoint, body) {
+    if (!pushcutApiKey) return log.error "Pushcut API Key is missing!"
+    
+    def params = [
+        uri: "https://api.pushcut.io/v1/${endpoint}",
+        body: body,
+        headers: [
+            "API-Key": pushcutApiKey,
+            "Content-Type": "application/json"
+        ]
+    ]
+    asynchttpPost("handlePushcutResponse", params)
+}
+
+def handlePushcutResponse(response, data) {
+    if (response.status != 200) log.warn "Pushcut API Error: ${response.status}"
+    else log.info "Pushcut API request successful."
+}
+
+// =================================================================
+// Lifecycle
+// =================================================================
 def installed() { initialize() }
 def updated() { initialize() }
 
@@ -59,71 +139,8 @@ def initialize() {
     if (!state.accessToken) {
         try {
             createAccessToken()
-            log.info "New OAuth Access Token created."
         } catch (e) {
-            log.error "OAuth is not enabled in the SmartApp settings: ${e}"
+            log.error "OAuth not enabled for this App. Please enable it in App Settings."
         }
     }
-}
-
-// --- Inbound Command Handler (Pushcut -> Hubitat) ---
-
-def handlePushcutCommand() {
-    def params = request.JSON ?: request.getParams()
-    
-    // Security check
-    if (params.secret != userSecret) {
-        log.warn "Unauthorized access attempt (Pushcut Server)."
-        return httpError(401, "Unauthorized")
-    }
-
-    def command = params.command?.toUpperCase()
-    def deviceName = params.device
-    def value = params.value 
-
-    if (!command || !deviceName) return httpError(400, "Missing command or device label.")
-
-    // Locate device by Label
-    def target = (authorizedSwitches + authorizedDimmers).find { it.label == deviceName }
-
-    if (!target) {
-        log.warn "Pushcut attempted to control '${deviceName}', but it is not authorized."
-        return httpError(404, "Device not authorized.")
-    }
-
-    log.info "Pushcut Server executing ${command} on ${deviceName}"
-
-    switch (command) {
-        case "ON": target.on(); break
-        case "OFF": target.off(); break
-        case "TOGGLE": target.currentSwitch == "on" ? target.off() : target.on(); break
-        case "SETLEVEL": 
-            if (target.hasCapability("SwitchLevel") && value) target.setLevel(value.toInteger())
-            break
-        default:
-            return httpError(400, "Unsupported command: ${command}")
-    }
-
-    return httpResponse(status: 200, data: [status: "success"])
-}
-
-// --- Outbound Notification Handler (Hubitat -> Pushcut) ---
-
-def sendPushcutNotification(notificationName, title = null, text = null, input = null, sound = null) {
-    if (!pushcutApiKey) return log.error "Pushcut API Key missing."
-
-    def postBody = [title: title, text: text, input: input, sound: sound].findAll { k, v -> v != null }
-    
-    def params = [
-        uri: "https://api.pushcut.io/v1/notifications/${notificationName}",
-        body: postBody,
-        headers: [ "API-Key": pushcutApiKey, "Content-Type": "application/json" ]
-    ]
-
-    asynchttpPost("handlePushcutResponse", params)
-}
-
-def handlePushcutResponse(response, data) {
-    if (response.status != 200) log.warn "Pushcut API Error: ${response.status}"
-    else log.info "Pushcut Notification sent successfully."
 }
