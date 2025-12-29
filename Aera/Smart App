@@ -16,9 +16,7 @@ definition(
 preferences {
     page(name: "mainPage")
     page(name: "authPage")
-    section("Device Discovery") {
-        href(name: "discoverLink", title: "Discover Devices", page: "discoveryPage", description: "Click to find your Ayla devices")
-}
+    page(name: "discoveryPage") // Defined here so it can be called by href
 }
 
 def mainPage() {
@@ -29,14 +27,20 @@ def mainPage() {
             input "appId", "text", title: "Ayla App ID", required: true
             input "appSecret", "password", title: "Ayla App Secret", required: true
         }
+        
         section("Status") {
             if (state.accessToken) {
-                paragraph "Authenticated: YES"
-                submitOnChange: true
+                paragraph "Authenticated: **YES**"
             } else {
-                paragraph "Status: Not Connected"
+                paragraph "Status: **Not Connected**"
             }
-            href(name: "authLink", title: "Test Connection", page: "authPage", description: "Click to authorize with Ayla")
+            href(name: "authLink", title: "1. Test Connection", page: "authPage", description: "Click to authorize with Ayla")
+        }
+
+        if (state.accessToken) {
+            section("Device Management") {
+                href(name: "discoverLink", title: "2. Discover Devices", page: "discoveryPage", description: "Click to find and add your Ayla devices")
+            }
         }
     }
 }
@@ -50,19 +54,31 @@ def authPage() {
     }
 }
 
+def discoveryPage() {
+    def devices = discoverDevices()
+    return dynamicPage(name: "discoveryPage", title: "Device Discovery") {
+        section("Found Devices") {
+            if (devices && devices.size() > 0) {
+                devices.each { devWrapper ->
+                    def dev = devWrapper.device // Ayla wraps devices in a "device" object
+                    paragraph "Found: **${dev.product_name}**\nDSN: ${dev.dsn}\nModel: ${dev.model}"
+                }
+            } else {
+                paragraph "No devices found. Ensure you are logged in and devices are registered in the Ayla app."
+            }
+        }
+    }
+}
+
 // --- Authorization Logic ---
 
 def login() {
     log.debug "Attempting to login to Ayla Networks..."
-    
-    // Ayla User API endpoint (Verify your specific region, e.g., US, EU, CN)
     def loginUrl = "https://ads-field.aylanetworks.com/users/sign_in.json"
     
     def params = [
         uri: loginUrl,
-        headers: [
-            "Content-Type": "application/json"
-        ],
+        headers: ["Content-Type": "application/json"],
         body: [
             user: [
                 email: settings.username,
@@ -81,62 +97,21 @@ def login() {
                 state.accessToken = resp.data.access_token
                 state.refreshToken = resp.data.refresh_token
                 state.tokenExpires = now() + (resp.data.expires_in * 1000)
-                log.info "Ayla Auth Successful. Token stored."
                 return "Successfully connected to Ayla!"
-            } else {
-                log.error "Ayla Auth Failed: ${resp.status}"
-                return "Login failed. Check logs."
             }
         }
     } catch (e) {
         log.error "Exception during Ayla login: $e"
-        return "Error connecting to Ayla: $e"
+        return "Error connecting to Ayla: ${e.message}"
     }
 }
 
-def installed() {
-    initialize()
-}
+// --- Discovery Logic ---
 
-def updated() {
-    initialize()
-}
-
-def initialize() {
-    // Schedule token refresh or device discovery here
-}
-
-
-// Add a new page for Discovery
-def discoveryPage() {
-    def devices = discoverDevices()
-    return dynamicPage(name: "discoveryPage", title: "Device Discovery") {
-        section("Found Devices") {
-            if (devices) {
-                devices.each { dev ->
-                    paragraph "Found: ${dev.product_name} (DSN: ${dev.dsn})"
-                }
-            } else {
-                paragraph "No devices found or unauthorized."
-            }
-        }
-    }
-}
-
-/**
- * Fetches the list of devices associated with the Ayla account.
- */
 def discoverDevices() {
-    if (!state.accessToken) {
-        log.error "No access token found. Please login first."
-        return null
-    }
+    if (!state.accessToken) return null
 
-    log.debug "Fetching devices from Ayla..."
-    
-    // Ayla Device Management (ADS) endpoint
     def deviceUrl = "https://ads-field.aylanetworks.com/apiv1/devices.json"
-    
     def params = [
         uri: deviceUrl,
         headers: [
@@ -149,9 +124,6 @@ def discoverDevices() {
         httpGet(params) { resp ->
             if (resp.status == 200) {
                 def deviceList = resp.data
-                log.info "Discovered ${deviceList.size()} devices."
-                
-                // Iterate and create child devices if they don't exist
                 deviceList.each { deviceData ->
                     createChildDevice(deviceData)
                 }
@@ -164,29 +136,25 @@ def discoverDevices() {
     }
 }
 
-/**
- * Creates a Hubitat Child Device for each Ayla DSN (Device Serial Number)
- */
 def createChildDevice(deviceData) {
-    def dsn = deviceData.device.dsn
-    def label = deviceData.device.product_name
-    def dni = "Ayla-${dsn}" // Unique Identifier
+    def dev = deviceData.device
+    def dni = "Ayla-${dev.dsn}"
     
-    def existingDevice = getChildDevice(dni)
-    if (!existingDevice) {
-        log.info "Creating new child device: ${label} with DNI: ${dni}"
-        
-        // Note: You must have a Device Driver installed with the name "Ayla Device Handler"
+    if (!getChildDevice(dni)) {
         try {
-            addChildDevice("custom", "Ayla Device Handler", dni, [
-                "label": label,
-                "isComponent": true,
-                "name": label
+            // Namespace 'absolutelyNothing9' used here to match your app
+            addChildDevice("absolutelyNothing9", "Ayla Device Handler", dni, [
+                "label": dev.product_name ?: "Ayla Device",
+                "isComponent": false,
+                "name": dev.model
             ])
+            log.info "Created child device: ${dni}"
         } catch (e) {
-            log.error "Failed to create child device. Ensure the Driver is installed: ${e}"
+            log.error "Child creation failed. Ensure 'Ayla Device Handler' driver is installed. Error: ${e}"
         }
-    } else {
-        log.debug "Device ${dni} already exists."
     }
 }
+
+def installed() { initialize() }
+def updated() { initialize() }
+def initialize() { }
