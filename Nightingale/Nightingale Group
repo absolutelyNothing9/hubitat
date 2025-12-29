@@ -1,1 +1,32 @@
 
+metadata {
+    definition (name: "Nightingale Group", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
+        capability "Switch"
+        capability "AudioVolume"
+        capability "Refresh"
+        
+        paragraph "Controls all units within this Nightingale Group simultaneously."
+    }
+}
+
+// Groups use the same 'cmd' logic but target the Group DSN provided by the SmartApp
+def on() { sendGroupCmd("{\\\"soundStatus\\\":\\\"1\\\"}"); sendEvent(name:"switch", value:"on") }
+def off() { sendGroupCmd("{\\\"soundStatus\\\":\\\"0\\\"}"); sendEvent(name:"switch", value:"off") }
+
+def setVolume(vol) { 
+    sendGroupCmd("{\\\"relaxVolume\\\":\\\"${vol}\\\",\\\"sleepVolume\\\":\\\"${vol}\\\"}") 
+    sendEvent(name:"volume", value: vol)
+}
+def setRelaxSound(sound) {
+    def map = ["Lakeshore":"510", "Crickets":"520", "Loons":"530", "Whales":"540", "Rain":"550"]
+    // Sending this to the Group DSN tells the Ayla cloud to update all units in the group
+    sendGroupCmd("{\\\"relaxSound\\\":\\\"${map[sound]}\\\"}")
+    sendEvent(name: "relaxSound", value: sound)
+}
+private sendGroupCmd(jsonVal) {
+    // Note: The SmartApp helper is identical, Ayla treats Group DSNs 
+    // as targets for the same property endpoints
+    parent.sendAylaCommand(device.getDataValue("dsn"), "cmd", jsonVal)
+}
+
+def refresh() { parent.refresh() }
