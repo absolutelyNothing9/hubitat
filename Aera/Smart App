@@ -1,6 +1,6 @@
 /**
  * Ayla Networks Integration for Hubitat
- * Author: Your Name
+ * Author: absolutelyNothing9
  */
 
 definition(
@@ -16,6 +16,9 @@ definition(
 preferences {
     page(name: "mainPage")
     page(name: "authPage")
+    section("Device Discovery") {
+        href(name: "discoverLink", title: "Discover Devices", page: "discoveryPage", description: "Click to find your Ayla devices")
+}
 }
 
 def mainPage() {
@@ -101,4 +104,89 @@ def updated() {
 
 def initialize() {
     // Schedule token refresh or device discovery here
+}
+
+
+// Add a new page for Discovery
+def discoveryPage() {
+    def devices = discoverDevices()
+    return dynamicPage(name: "discoveryPage", title: "Device Discovery") {
+        section("Found Devices") {
+            if (devices) {
+                devices.each { dev ->
+                    paragraph "Found: ${dev.product_name} (DSN: ${dev.dsn})"
+                }
+            } else {
+                paragraph "No devices found or unauthorized."
+            }
+        }
+    }
+}
+
+/**
+ * Fetches the list of devices associated with the Ayla account.
+ */
+def discoverDevices() {
+    if (!state.accessToken) {
+        log.error "No access token found. Please login first."
+        return null
+    }
+
+    log.debug "Fetching devices from Ayla..."
+    
+    // Ayla Device Management (ADS) endpoint
+    def deviceUrl = "https://ads-field.aylanetworks.com/apiv1/devices.json"
+    
+    def params = [
+        uri: deviceUrl,
+        headers: [
+            "Authorization": "auth_token ${state.accessToken}",
+            "Content-Type": "application/json"
+        ]
+    ]
+
+    try {
+        httpGet(params) { resp ->
+            if (resp.status == 200) {
+                def deviceList = resp.data
+                log.info "Discovered ${deviceList.size()} devices."
+                
+                // Iterate and create child devices if they don't exist
+                deviceList.each { deviceData ->
+                    createChildDevice(deviceData)
+                }
+                return deviceList
+            }
+        }
+    } catch (e) {
+        log.error "Discovery failed: $e"
+        return null
+    }
+}
+
+/**
+ * Creates a Hubitat Child Device for each Ayla DSN (Device Serial Number)
+ */
+def createChildDevice(deviceData) {
+    def dsn = deviceData.device.dsn
+    def label = deviceData.device.product_name
+    def dni = "Ayla-${dsn}" // Unique Identifier
+    
+    def existingDevice = getChildDevice(dni)
+    if (!existingDevice) {
+        log.info "Creating new child device: ${label} with DNI: ${dni}"
+        
+        // Note: You must have a Device Driver installed with the name "Ayla Device Handler"
+        try {
+            addChildDevice("custom", "Ayla Device Handler", dni, [
+                "label": label,
+                "isComponent": true,
+                "name": label
+            ])
+        } catch (e) {
+            log.error "Failed to create child device. Ensure the Driver is installed: ${e}"
+        }
+    } else {
+        log.debug "Device ${dni} already exists."
+    }
 }
