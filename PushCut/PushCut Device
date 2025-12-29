@@ -3,7 +3,7 @@
  * Create a virtual device for each Pushcut Notification or Widget you want to control.
  */
 metadata {
-    definition (name: "Pushcut Universal Device", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+    definition (name: "Pushcut Device", namespace: "absolutelyNothing", author: "absolutelyNothing") {
         capability "Switch"        // Turning ON sends the notification/widget update
         capability "Momentary"    // Allows the "Push" command
         capability "Actuator"
