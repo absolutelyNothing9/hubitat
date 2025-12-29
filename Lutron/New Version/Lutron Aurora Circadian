@@ -1,0 +1,167 @@
+/**
+ * Lutron Aurora Dimmer with Circadian Logic & Push-to-Sync
+ * Model: Z3-1BRL
+ * Namespace: absolutelyNothing
+ */
+
+import com.hubitat.zigbee.DataType
+import groovy.time.TimeCategory
+
+metadata {
+    definition (name: "Lutron Aurora Dimmer with Color Temperature", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+        capability "Actuator"
+        capability "Switch"
+        capability "Switch Level"
+        capability "Color Temperature"
+        capability "Battery"
+        capability "Refresh"
+        capability "PushableButton"
+        capability "DoubleTapableButton"
+        capability "HoldableButton"
+        capability "Presence Sensor"
+
+        command "resetToDefaults"
+        command "refresh"
+        command "push", ["number"]
+
+        attribute "scene", "string"
+        attribute "presence", "string"
+
+        fingerprint profileId: "0104", inClusters: "0000,0001,0003,1000,FC00", outClusters: "0003,0004,0006,0008,0019,1000", manufacturer: "Lutron", model: "Z3-1BRL"
+    }
+
+    preferences {
+        input(name: "silentTimeAfterPush", type: "number", title: "Ignore rotation after push (ms)", defaultValue: 300)
+        input(name: "debug", type: "bool", title: "Enable debug logging", defaultValue: true)
+        
+        // Circadian Schedule Inputs
+        input(name: "schedule1start", type: "string", title: "Schedule 1 Start (Offset from Sunrise)", defaultValue: "0:30")
+        input(name: "schedule1colorTemp", type: "int", title: "Schedule 1 Temp (K)", defaultValue: 6410)
+        input(name: "schedule1level", type: "int", title: "Schedule 1 Level", defaultValue: 100)
+        
+        input(name: "schedule2start", type: "string", title: "Schedule 2 Start (Offset from Sunrise)", defaultValue: "4:00")
+        input(name: "schedule2colorTemp", type: "int", title: "Schedule 2 Temp (K)", defaultValue: 4291)
+        
+        input(name: "schedule3start", type: "string", title: "Schedule 3 Start (Offset from Sunset)", defaultValue: "0:00")
+        input(name: "schedule3colorTemp", type: "int", title: "Schedule 3 Temp (K)", defaultValue: 2890)
+        
+        input(name: "schedule4start", type: "string", title: "Schedule 4 Start (Offset from Sunset)", defaultValue: "2:00")
+        input(name: "schedule4colorTemp", type: "int", title: "Schedule 4 Temp (K)", defaultValue: 2237)
+    }
+}
+
+// --- Zigbee Parsing ---
+
+def parse(String description) {
+    if (debug) log.debug "description = $description"
+    def event = zigbee.getEvent(description)
+    
+    if (event) {
+        if (event.name == "battery") {
+            sendEvent(name: "battery", value: event.value, unit: "%")
+        }
+    } else {
+        def descMap = zigbee.parseDescriptionAsMap(description)
+        
+        // Cluster 0x0008 is Level/Rotary Dial
+        if (descMap && descMap.clusterInt == 0x0008) {
+            handleLevelEvent(descMap)
+        } 
+        // Cluster 0x0006 is Button Press
+        else if (descMap && descMap.clusterInt == 0x0006) {
+            buttonPressLogic()
+        }
+    }
+}
+
+// --- Rotary Logic (Push-to-Sync) ---
+
+def handleLevelEvent(descMap) {
+    state.changeTime = now()
+    
+    // Check if we should ignore this move (debounce after a button press)
+    if (state.changeTime - state.lastPush < (silentTimeAfterPush ?: 300)) return
+
+    int deviceLevel = descMap.data.size() < 3 ? 0 : Integer.parseInt(descMap.data[0], 16) * (100/254)
+    
+    // Update internal state
+    state.previousLevel = state.level ?: 0
+    state.level = deviceLevel
+    
+    // TRIGGER PUSH-TO-SYNC: 
+    // Every time the dial moves, we recalculate what the color temp SHOULD be for this time of day
+    syncCircadianState()
+    
+    sendEvent(name: "level", value: state.level, type: "physical")
+    if (state.level > 0 && device.currentValue("switch") == "off") {
+        sendEvent(name: "switch", value: "on", type: "physical")
+    } else if (state.level <= 0) {
+        sendEvent(name: "switch", value: "off", type: "physical")
+    }
+}
+
+// --- Button Logic ---
+
+def buttonPressLogic() {
+    state.lastPush = now()
+    if (device.currentValue("switch") == "on") {
+        off()
+    } else {
+        on()
+    }
+}
+
+def on() {
+    syncCircadianState()
+    sendEvent(name: "switch", value: "on", type: "digital")
+}
+
+def off() {
+    sendEvent(name: "switch", value: "off", type: "digital")
+}
+
+// --- Circadian Sync Engine ---
+
+def syncCircadianState() {
+    def currTime = new Date()
+    def riseSet = getSunriseAndSunset()
+    
+    // Calculate Schedule times
+    def s1 = getSunriseAndSunset(sunriseOffset: schedule1start).sunrise
+    def s2 = getSunriseAndSunset(sunriseOffset: schedule2start).sunrise
+    def s3 = getSunriseAndSunset(sunsetOffset: schedule3start).sunset
+    def s4 = getSunriseAndSunset(sunsetOffset: schedule4start).sunset
+
+    def targetTemp = 2700 // Default Warm
+    def sceneName = "Default"
+
+    if (timeOfDayIsBetween(s1, s2, currTime, location.timeZone)) {
+        targetTemp = schedule1colorTemp
+        sceneName = "Morning Energize"
+    } else if (timeOfDayIsBetween(s2, s3, currTime, location.timeZone)) {
+        targetTemp = schedule2colorTemp
+        sceneName = "Daylight Concentrate"
+    } else if (timeOfDayIsBetween(s3, s4, currTime, location.timeZone)) {
+        targetTemp = schedule3colorTemp
+        sceneName = "Evening Read"
+    } else {
+        targetTemp = schedule4colorTemp
+        sceneName = "Night Relax"
+    }
+
+    if (device.currentValue("colorTemperature") != targetTemp) {
+        sendEvent(name: "colorTemperature", value: targetTemp, unit: "K", descriptionText: "Circadian Sync Active")
+    }
+    sendEvent(name: "scene", value: sceneName)
+}
+
+def refresh() {
+    log.info "Refreshing Lutron Aurora state"
+    syncCircadianState()
+}
+
+def installed() {
+    state.level = 100
+    state.lastPush = 0
+    sendEvent(name: "presence", value: "present")
+}
