@@ -71,7 +71,61 @@ def discoverDevices() {
         }
     } catch (e) { log.error "Discovery error: ${e}" }
 }
+/**
+ * Refreshes all properties for a specific Nightingale device
+ * This allows Hubitat to see volume, sound, and color changes made outside of Hubitat.
+ */
+def refreshChildData(dsn) {
+    if (!state.accessToken) return
+    
+    log.debug "Refreshing Nightingale data for DSN: ${dsn}"
+    def url = "https://ads-field.aylanetworks.com/apiv1/devices/${dsn}/properties.json"
+    
+    def params = [
+        uri: url,
+        headers: ["Authorization": "auth_token ${state.accessToken}", "Content-Type": "application/json"]
+    ]
+    
+    try {
+        httpGet(params) { resp ->
+            if (resp.status == 200) {
+                def child = getChildDevice("Night-${dsn}")
+                resp.data.each { propWrapper ->
+                    def p = propWrapper.property
+                    
+                    // Nightingale specific: the 'cmd' property contains a JSON string
+                    if (p.name == "cmd" && child) {
+                        parseNightingaleJson(child, p.value)
+                    } else if (child) {
+                        // Standard properties like battery or online status
+                        child.generateEvent([name: p.name, value: p.value])
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        log.error "Failed to refresh Nightingale data: ${e}"
+    }
+}
 
+/**
+ * Parses the nested JSON inside Nightingale's 'cmd' property
+ */
+def parseNightingaleJson(child, jsonString) {
+    try {
+        def slurper = new groovy.json.JsonSlurper()
+        def data = slurper.parseText(jsonString)
+        
+        // Map Ayla JSON keys to Hubitat Attribute names
+        if (data.soundStatus != null) child.generateEvent([name: "switch", value: data.soundStatus == "1" ? "on" : "off"])
+        if (data.relaxVolume != null) child.generateEvent([name: "volume", value: data.relaxVolume])
+        if (data.relaxSound != null)  child.generateEvent([name: "relaxSound", value: data.relaxSound])
+        if (data.lightColor != null)  child.generateEvent([name: "lightColor", value: data.lightColor])
+        if (data.lightStatus != null) child.generateEvent([name: "lightStatus", value: data.lightStatus == "1" ? "on" : "off"])
+    } catch (e) {
+        log.error "Error parsing Nightingale JSON: ${e}"
+    }
+}
 // Helper for Child Drivers
 def sendAylaCommand(dsn, prop, val) {
     def params = [
