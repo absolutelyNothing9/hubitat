@@ -1,13 +1,13 @@
 /**
- * Ayla Networks Integration for Hubitat
+ * Ayla Networks Multi-Brand Integration (Aera & Nightingale)
  * Author: absolutelyNothing9
  */
 
 definition(
-    name: "Ayla Networks Integration",
+    name: "Ayla Networks Multi-Integration",
     namespace: "absolutelyNothing9",
     author: "absolutelyNothing9",
-    description: "Integrates Ayla Networks devices with Hubitat Elevation.",
+    description: "Manage Aera and Nightingale devices via Ayla Networks.",
     category: "My Apps",
     iconUrl: "",
     iconX2Url: ""
@@ -16,77 +16,75 @@ definition(
 preferences {
     page(name: "mainPage")
     page(name: "authPage")
-    page(name: "discoveryPage") // Defined here so it can be called by href
+    page(name: "discoveryPage")
 }
 
 def mainPage() {
-    return dynamicPage(name: "mainPage", title: "Ayla Networks", install: true, uninstall: true) {
-        section("Ayla Credentials") {
-            input "username", "text", title: "Ayla Email", required: true
-            input "password", "password", title: "Ayla Password", required: true
-            input "appId", "text", title: "Ayla App ID", required: true
-            input "appSecret", "password", title: "Ayla App Secret", required: true
-        }
+    return dynamicPage(name: "mainPage", title: "Ayla Networks Multi-Brand", install: true, uninstall: true) {
         
-        section("Status") {
-            if (state.accessToken) {
-                paragraph "Authenticated: **YES**"
-            } else {
-                paragraph "Status: **Not Connected**"
-            }
-            href(name: "authLink", title: "1. Test Connection", page: "authPage", description: "Click to authorize with Ayla")
+        section("Step 1: Configure Accounts") {
+            paragraph "You can configure and authorize both brands. The status will update once a token is received."
+            
+            // Aera Configuration
+            input "aeraEmail", "text", title: "Aera Email", required: false
+            input "aeraPass", "password", title: "Aera Password", required: false
+            href(name: "authAera", title: "Authorize Aera", page: "authPage", params: [brand: "Aera"], description: getStatus("Aera"))
+            
+            hr()
+            
+            // Nightingale Configuration
+            input "nightingaleEmail", "text", title: "Nightingale Email", required: false
+            input "nightingalePass", "password", title: "Nightingale Password", required: false
+            href(name: "authNight", title: "Authorize Nightingale", page: "authPage", params: [brand: "Nightingale"], description: getStatus("Nightingale"))
         }
 
-        if (state.accessToken) {
-            section("Device Management") {
-                href(name: "discoverLink", title: "2. Discover Devices", page: "discoveryPage", description: "Click to find and add your Ayla devices")
-            }
-        }
-    }
-}
-
-def authPage() {
-    def loginStatus = login()
-    return dynamicPage(name: "authPage", title: "Connection Test") {
-        section {
-            paragraph "${loginStatus}"
-        }
-    }
-}
-
-def discoveryPage() {
-    def devices = discoverDevices()
-    return dynamicPage(name: "discoveryPage", title: "Device Discovery") {
-        section("Found Devices") {
-            if (devices && devices.size() > 0) {
-                devices.each { devWrapper ->
-                    def dev = devWrapper.device // Ayla wraps devices in a "device" object
-                    paragraph "Found: **${dev.product_name}**\nDSN: ${dev.dsn}\nModel: ${dev.model}"
-                }
-            } else {
-                paragraph "No devices found. Ensure you are logged in and devices are registered in the Ayla app."
+        if (state.aeraToken || state.nightingaleToken) {
+            section("Step 2: Device Discovery") {
+                href(name: "discoverLink", title: "Scan for Devices", page: "discoveryPage", description: "Click to find devices for all authorized accounts")
             }
         }
     }
 }
 
-// --- Authorization Logic ---
+def getStatus(brand) {
+    def token = (brand == "Aera") ? state.aeraToken : state.nightingaleToken
+    return token ? "Status: Connected ✅" : "Status: Not Connected ❌ (Click to Login)"
+}
 
-def login() {
-    log.debug "Attempting to login to Ayla Networks..."
-    def loginUrl = "https://ads-field.aylanetworks.com/users/sign_in.json"
+// --- Authorization Page & Logic ---
+
+def authPage(params) {
+    def brand = params?.brand ?: params?.obj?.brand // Handle Hubitat param passing
+    def result = login(brand)
     
+    return dynamicPage(name: "authPage", title: "${brand} Authorization") {
+        section {
+            paragraph "${result}"
+        }
+    }
+}
+
+def login(brand) {
+    if (!brand) return "Error: No brand specified."
+    
+    log.debug "Attempting login for ${brand}..."
+    
+    def config = [
+        "Aera": [id: "aera-6966028-id", secret: "aera-6966028-secret-N_V_7", user: settings.aeraEmail, pass: settings.aeraPass],
+        "Nightingale": [id: "Nightingale-6348421-id", secret: "Nightingale-6348421-secret-M_V_1", user: settings.nightingaleEmail, pass: settings.nightingalePass]
+    ]
+    
+    def target = config[brand]
+    if (!target.user || !target.pass) return "Please enter your email and password on the main page first."
+
     def params = [
-        uri: loginUrl,
+        uri: "https://ads-field.aylanetworks.com/users/sign_in.json",
         headers: ["Content-Type": "application/json"],
         body: [
             user: [
-                email: settings.username,
-                password: settings.password,
-                application: [
-                    app_id: settings.appId,
-                    app_secret: settings.appSecret
-                ]
+                email: target.user,
+                password: target.pass,
+                application: [app_id: target.id, app_secret: target.secret]
             ]
         ]
     ]
@@ -94,67 +92,83 @@ def login() {
     try {
         httpPostJson(params) { resp ->
             if (resp.status == 200) {
-                state.accessToken = resp.data.access_token
-                state.refreshToken = resp.data.refresh_token
-                state.tokenExpires = now() + (resp.data.expires_in * 1000)
-                return "Successfully connected to Ayla!"
+                if (brand == "Aera") state.aeraToken = resp.data.access_token
+                else state.nightingaleToken = resp.data.access_token
+                
+                log.info "${brand} login successful."
+                return "${brand} connected successfully!"
             }
         }
     } catch (e) {
-        log.error "Exception during Ayla login: $e"
-        return "Error connecting to Ayla: ${e.message}"
+        log.error "${brand} login failed: ${e.message}"
+        return "Failed to connect to ${brand}. Check credentials and logs."
     }
 }
 
 // --- Discovery Logic ---
 
-def discoverDevices() {
-    if (!state.accessToken) return null
+def discoveryPage() {
+    def foundDevices = []
+    
+    if (state.aeraToken) foundDevices += discoverByBrand("Aera", state.aeraToken)
+    if (state.nightingaleToken) foundDevices += discoverByBrand("Nightingale", state.nightingaleToken)
+    
+    return dynamicPage(name: "discoveryPage", title: "Device Discovery") {
+        section("Scan Results") {
+            if (foundDevices) {
+                foundDevices.each { dev ->
+                    paragraph "Found **${dev.brand}** Device: ${dev.name} (DSN: ${dev.dsn})"
+                }
+            } else {
+                paragraph "No devices found. Check your authorizations."
+            }
+        }
+    }
+}
 
-    def deviceUrl = "https://ads-field.aylanetworks.com/apiv1/devices.json"
+def discoverByBrand(brand, token) {
+    log.debug "Scanning for ${brand} devices..."
+    def results = []
     def params = [
-        uri: deviceUrl,
-        headers: [
-            "Authorization": "auth_token ${state.accessToken}",
-            "Content-Type": "application/json"
-        ]
+        uri: "https://ads-field.aylanetworks.com/apiv1/devices.json",
+        headers: ["Authorization": "auth_token ${token}", "Content-Type": "application/json"]
     ]
 
     try {
         httpGet(params) { resp ->
             if (resp.status == 200) {
-                def deviceList = resp.data
-                deviceList.each { deviceData ->
-                    createChildDevice(deviceData)
+                resp.data.each { item ->
+                    def d = item.device
+                    createChildDevice(d, brand)
+                    results << [brand: brand, name: d.product_name, dsn: d.dsn]
                 }
-                return deviceList
             }
         }
     } catch (e) {
-        log.error "Discovery failed: $e"
-        return null
+        log.error "Discovery failed for ${brand}: ${e.message}"
     }
+    return results
 }
 
-def createChildDevice(deviceData) {
-    def dev = deviceData.device
-    def dni = "Ayla-${dev.dsn}"
-    
+def createChildDevice(deviceData, brand) {
+    def dni = "Ayla-${deviceData.dsn}"
     if (!getChildDevice(dni)) {
         try {
-            // Namespace 'absolutelyNothing9' used here to match your app
+            // Both brands use the same handler; the handler will check the 'brand' data point
             addChildDevice("absolutelyNothing9", "Ayla Device Handler", dni, [
-                "label": dev.product_name ?: "Ayla Device",
+                "label": "${brand}: ${deviceData.product_name}",
                 "isComponent": false,
-                "name": dev.model
+                "name": deviceData.model,
+                "data": [brand: brand, dsn: deviceData.dsn]
             ])
-            log.info "Created child device: ${dni}"
+            log.info "Created ${brand} child: ${dni}"
         } catch (e) {
-            log.error "Child creation failed. Ensure 'Ayla Device Handler' driver is installed. Error: ${e}"
+            log.error "Failed to create child: ${e}"
         }
     }
 }
 
+def hr() { paragraph "<hr style='background-color:#ccc; height: 1px; border: 0;'>" }
 def installed() { initialize() }
 def updated() { initialize() }
 def initialize() { }
