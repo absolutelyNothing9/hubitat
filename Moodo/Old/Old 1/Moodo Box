@@ -33,7 +33,7 @@ metadata {
 
         command "applyFavorite"
         command "createFavorite"
-        command "updateFavroite"
+        command "updateFavorite"
       
         command "shuffleOn"
         command "shuffleOff"
