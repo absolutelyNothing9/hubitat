@@ -69,29 +69,21 @@ def addChildPage() {
 
 def handlePushcutCommand() {
     def params = request.JSON ?: request.getParams()
-    
-    if (params.secret != userSecret) {
-        log.warn "Pushcut Server: Unauthorized secret mismatch."
-        return httpError(401, "Unauthorized")
-    }
+    if (params.secret != userSecret) return httpError(401, "Unauthorized")
 
     def command = params.command?.toUpperCase()
     def deviceName = params.device
     def value = params.value 
     
     def target = authorizedDevices.find { it.label == deviceName }
-    if (!target) return httpError(404, "Device not authorized or found.")
+    if (!target) return httpError(404, "Device not authorized.")
 
-    log.info "Pushcut Server: Executing ${command} on ${deviceName}"
-    
     switch (command) {
         case "ON": target.on(); break
         case "OFF": target.off(); break
         case "TOGGLE": target.currentSwitch == "on" ? target.off() : target.on(); break
         case "SETLEVEL": if (value) target.setLevel(value.toInteger()); break
-        default: log.warn "Unknown command: ${command}"; break
     }
-
     return httpResponse(status: 200, data: [status: "success"])
 }
 
@@ -99,42 +91,15 @@ def handlePushcutCommand() {
 // ⬆️ OUTBOUND LOGIC
 // =================================================================
 
-def sendPushcutNotification(targetDeviceName, notificationName, title, text, inputStr, sound, image) {
-    def body = [
-        title: title,
-        text: text,
-        input: inputStr,
-        sound: sound,
-        image: image
-    ].findAll { k, v -> v != null && v != "" }
-    
+def sendPushcutPayload(endpoint, targetDeviceName, payloadMap) {
     // Broadcast logic: If target is "All", do not restrict 'devices' array
     if (targetDeviceName != "All") {
-        body.devices = [targetDeviceName]
+        payloadMap.devices = [targetDeviceName]
     }
     
-    sendPushcutRequest("notifications/${notificationName}", body)
-}
-
-def updatePushcutWidget(targetDeviceName, widgetName, contentMap, inputsMap, onTapMap) {
-    def body = [
-        content: contentMap,
-        inputs: inputsMap,
-        onTap: onTapMap
-    ].findAll { k, v -> v != null && v != "" && v != [:] }
-
-    // Broadcast logic
-    if (targetDeviceName != "All") {
-        body.devices = [targetDeviceName]
-    }
-
-    sendPushcutRequest("widgets/${widgetName}", body)
-}
-
-private sendPushcutRequest(endpoint, body) {
     def params = [
         uri: "https://api.pushcut.io/v1/${endpoint}",
-        body: body,
+        body: payloadMap,
         headers: ["API-Key": pushcutApiKey, "Content-Type": "application/json"]
     ]
     asynchttpPost("handlePushcutResponse", params)
@@ -145,10 +110,6 @@ def handlePushcutResponse(response, data) {
         log.error "Pushcut API Error: ${response.status} - ${response.errorMessage}"
     }
 }
-
-// =================================================================
-// CHILD DEVICE MANAGEMENT
-// =================================================================
 
 def createChild() {
     def dni = "Pushcut-Mobile-${pushcutDeviceName}"
