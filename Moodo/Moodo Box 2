@@ -1,0 +1,122 @@
+/**
+ * Moodo Box Device Driver (Child) - Enhanced
+ * Author: absolutelyNothing9 (Updated by Gemini)
+ * Features: Interval, Shuffle Status, Slot Colors, Smart Slot Control
+ */
+
+metadata {
+    definition (name: "Moodo Box", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
+        capability "Switch"
+        capability "Switch Level"
+        capability "Refresh"
+        capability "Actuator" // Good practice for rules engines
+
+        // --- COMMANDS ---
+        command "setSlotLevel", [[name:"Slot", type: "ENUM", constraints: ["0","1","2","3"]], [name:"Level", type: "NUMBER"]]
+        command "shuffleOn"
+        command "shuffleOff"
+        command "intervalOn"  // Integrated from Code 2
+        command "intervalOff" // Integrated from Code 2
+
+        // --- ATTRIBUTES ---
+        attribute "Online", "string"
+        attribute "Interval", "string" // Integrated from Code 2
+        attribute "Shuffle", "string"  // Integrated from Code 2
+        
+        // Slot Attributes
+        attribute "Slot0_Scent", "string"
+        attribute "Slot0_Speed", "number"
+        attribute "Slot0_Color", "string" // Integrated from Code 2
+
+        attribute "Slot1_Scent", "string"
+        attribute "Slot1_Speed", "number"
+        attribute "Slot1_Color", "string" // Integrated from Code 2
+
+        attribute "Slot2_Scent", "string"
+        attribute "Slot2_Speed", "number"
+        attribute "Slot2_Color", "string" // Integrated from Code 2
+
+        attribute "Slot3_Scent", "string"
+        attribute "Slot3_Speed", "number"
+        attribute "Slot3_Color", "string" // Integrated from Code 2
+    }
+}
+
+// --- STANDARD SWITCH COMMANDS ---
+def on() { 
+    parent.sendMoodoRequest("boxes/${device.getDataValue('device_key')}", "POST")
+    sendEvent(name: "switch", value: "on") 
+}
+
+def off() { 
+    parent.sendMoodoRequest("boxes/${device.getDataValue('device_key')}", "DELETE")
+    sendEvent(name: "switch", value: "off") 
+}
+
+def setLevel(val) {
+    parent.sendMoodoRequest("intensity/${device.getDataValue('device_key')}", "POST", [fan_volume: val.toInteger()])
+}
+
+// --- INTERVAL COMMANDS (New) ---
+def intervalOn() {
+    // Code 2 uses POST to 'interval/{key}'
+    parent.sendMoodoRequest("interval/${device.getDataValue('device_key')}", "POST")
+}
+
+def intervalOff() {
+    // Code 2 uses DELETE to 'interval/{key}'
+    parent.sendMoodoRequest("interval/${device.getDataValue('device_key')}", "DELETE")
+}
+
+// --- SHUFFLE COMMANDS ---
+def shuffleOn() { 
+    parent.sendMoodoRequest("shuffle/${device.getDataValue('device_key')}", "POST") 
+}
+
+def shuffleOff() { 
+    parent.sendMoodoRequest("shuffle/${device.getDataValue('device_key')}", "DELETE") 
+}
+
+// --- SMART SLOT CONTROL ---
+def setSlotLevel(slot, level) {
+    // Collects current values from attributes to avoid resetting other slots
+    def s0 = (slot == "0") ? level : (device.currentValue("Slot0_Speed") ?: 0)
+    def s1 = (slot == "1") ? level : (device.currentValue("Slot1_Speed") ?: 0)
+    def s2 = (slot == "2") ? level : (device.currentValue("Slot2_Speed") ?: 0)
+    def s3 = (slot == "3") ? level : (device.currentValue("Slot3_Speed") ?: 0)
+
+    def body = [
+        device_key: device.getDataValue("device_key").toInteger(),
+        box_status: 1,
+        settings_slot0: [fan_speed: s0, fan_active: true],
+        settings_slot1: [fan_speed: s1, fan_active: true],
+        settings_slot2: [fan_speed: s2, fan_active: true],
+        settings_slot3: [fan_speed: s3, fan_active: true]
+    ]
+    parent.sendMoodoRequest("boxes", "PUT", body)
+}
+
+def refresh() { 
+    parent.sendMoodoRequest("boxes/${device.getDataValue('device_key')}", "GET") 
+}
+
+// --- PARSING (Updated) ---
+// This is called by the Parent App when data returns from the Cloud
+def parseResponse(box) {
+    // Basic status
+    sendEvent(name: "switch", value: box.box_status == 1 ? "on" : "off")
+    sendEvent(name: "level", value: box.fan_volume)
+    sendEvent(name: "Online", value: box.is_online ? "True" : "False")
+
+    // New Features: Interval & Shuffle Status
+    // box.interval and box.shuffle are booleans in the JSON
+    sendEvent(name: "Interval", value: box.interval ? "on" : "off")
+    sendEvent(name: "Shuffle", value: box.shuffle ? "on" : "off")
+
+    // Slot Parsing (Added Colors)
+    box.settings.eachWithIndex { slot, i ->
+        sendEvent(name: "Slot${i}_Speed", value: slot.fan_speed)
+        sendEvent(name: "Slot${i}_Scent", value: slot.capsule_info.title)
+        sendEvent(name: "Slot${i}_Color", value: slot.capsule_info.color) // Integrated
+    }
+}
