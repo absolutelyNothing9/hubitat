@@ -1,15 +1,20 @@
 /**
- * Pushcut Ultimate Integration - COMPLETE VERSION
- * Includes: Inbound Server, Outbound Notifications, Widget Updates, and Child Device Management.
+ * Pushcut Ultimate Integration - PARENT APP
+ * * Logic:
+ * - Manages API Keys and Inbound Webhooks.
+ * - Creates Child Devices representing Physical iOS Devices.
+ * - Routes commands from Child Devices to the Pushcut API with specific device targeting.
  */
 
 definition(
     name: "Pushcut Ultimate Integration",
-    namespace: "absolutelyNothing",
-    author: "absolutelyNothing",
-    description: "The complete server and sender for Pushcut notifications and widgets with child device support.",
+    namespace: "absolutelyNothing9",
+    author: "absolutelyNothing9",
+    description: "Server and Device Manager for Pushcut. Creates devices representing your Phones/iPads.",
     category: "My Apps",
-    oauth: true 
+    oauth: true,
+    iconUrl: "",
+    iconX2Url: ""
 )
 
 mappings {
@@ -22,7 +27,7 @@ preferences {
 }
 
 def mainPage() {
-    return dynamicPage(name: "mainPage", title: "Pushcut Ultimate Config", install: true, uninstall: true) {
+    return dynamicPage(name: "mainPage", title: "Pushcut Configuration", install: true, uninstall: true) {
         section("API & Security") {
             input "pushcutApiKey", "password", title: "Pushcut API Key (For Outbound)", required: true
             input "userSecret", "password", title: "Webhook Secret (For Inbound Server)", required: true
@@ -31,31 +36,30 @@ def mainPage() {
         section("Inbound Server (Receive from Pushcut)") {
             if (state.accessToken) {
                 def url = "${getFullApiServerUrl()}/pushcut/command?access_token=${state.accessToken}&secret=${userSecret}"
-                paragraph "Use this URL for Pushcut Online Actions:\n\n**${url}**"
+                paragraph "Use this URL in Pushcut 'Server Actions' to control Hubitat:\n\n**${url}**"
             } else {
                 paragraph "Click 'Done' and re-open to generate your Webhook URL."
             }
             input "authorizedDevices", "capability.switch", title: "Devices Pushcut can control", multiple: true, required: false
         }
         
-        section("Outbound Devices (Send to Pushcut)") {
-            paragraph "Create virtual devices to trigger specific Notifications or Widgets."
-            href(name: "addChildLink", title: "Add New Pushcut Virtual Device", page: "addChildPage")
+        section("Managed iOS Devices") {
+            paragraph "Create a virtual device for every physical iPhone or iPad in your Pushcut account."
+            href(name: "addChildLink", title: "Add New iOS Device", page: "addChildPage")
             
             def children = getChildDevices()
             if (children) {
-                children.each { child -> paragraph "Managed Device: **${child.label}**" }
+                children.each { child -> paragraph "Device: **${child.label}** (ID: ${child.deviceNetworkId})" }
             }
         }
     }
 }
 
 def addChildPage() {
-    return dynamicPage(name: "addChildPage", title: "Add Device") {
+    return dynamicPage(name: "addChildPage", title: "Add iOS Device") {
         section {
-            input "newDeviceName", "text", title: "Display Name (e.g., Bedroom Widget)", required: true
-            input "pushcutID", "text", title: "Pushcut ID (Exactly as in iOS App)", required: true
-            input "isWidget", "bool", title: "Is this a Widget update?", defaultValue: false
+            input "newDeviceName", "text", title: "Device Label (e.g., John's iPhone)", required: true
+            input "pushcutDeviceName", "text", title: "Pushcut Device Name", description: "Must match the device name in Pushcut Settings exactly.", required: true
         }
         section {
             action(name: "createNewDevice", title: "Create Device Now", action: "createChild")
@@ -64,14 +68,14 @@ def addChildPage() {
 }
 
 // =================================================================
-// 🚨 INBOUND SERVER LOGIC (Receiving commands)
+// 🚨 INBOUND SERVER LOGIC (Receiving commands from iOS)
 // =================================================================
 
 def handlePushcutCommand() {
     def params = request.JSON ?: request.getParams()
     
     if (params.secret != userSecret) {
-        log.warn "Unauthorized secret mismatch."
+        log.warn "Pushcut Server: Unauthorized secret mismatch."
         return httpError(401, "Unauthorized")
     }
 
@@ -80,7 +84,7 @@ def handlePushcutCommand() {
     def value = params.value 
     
     def target = authorizedDevices.find { it.label == deviceName }
-    if (!target) return httpError(404, "Device not authorized.")
+    if (!target) return httpError(404, "Device not authorized or found.")
 
     log.info "Pushcut Server: Executing ${command} on ${deviceName}"
     
@@ -89,6 +93,7 @@ def handlePushcutCommand() {
         case "OFF": target.off(); break
         case "TOGGLE": target.currentSwitch == "on" ? target.off() : target.on(); break
         case "SETLEVEL": if (value) target.setLevel(value.toInteger()); break
+        default: log.warn "Unknown command: ${command}"; break
     }
 
     return httpResponse(status: 200, data: [status: "success"])
@@ -98,13 +103,33 @@ def handlePushcutCommand() {
 // ⬆️ OUTBOUND LOGIC (Sending data to iOS)
 // =================================================================
 
-def sendPushcutNotification(notificationName, title, text) {
-    def body = [title: title, text: text].findAll { k, v -> v != null }
+/**
+ * Sends a notification request to the Pushcut API, targeting a specific device.
+ */
+def sendPushcutNotification(targetDeviceName, notificationName, title, text, inputStr, sound, image) {
+    def body = [
+        title: title,
+        text: text,
+        input: inputStr,
+        sound: sound,
+        image: image,
+        devices: [targetDeviceName] // 👈 Targets specific device
+    ].findAll { k, v -> v != null && v != "" }
+    
     sendPushcutRequest("notifications/${notificationName}", body)
 }
 
-def updatePushcutWidget(widgetName, Map contentMap) {
-    def body = [content: contentMap]
+/**
+ * Sends a widget update request to the Pushcut API, targeting a specific device.
+ */
+def updatePushcutWidget(targetDeviceName, widgetName, contentMap, inputsMap, onTap) {
+    def body = [
+        content: contentMap,
+        inputs: inputsMap,
+        onTap: onTap,
+        devices: [targetDeviceName] // 👈 Targets specific device
+    ].findAll { k, v -> v != null && v != "" && v != [:] }
+
     sendPushcutRequest("widgets/${widgetName}", body)
 }
 
@@ -118,7 +143,9 @@ private sendPushcutRequest(endpoint, body) {
 }
 
 def handlePushcutResponse(response, data) {
-    if (response.status != 200) log.warn "Pushcut API Error: ${response.status}"
+    if (response.status != 200) {
+        log.error "Pushcut API Error: ${response.status} - ${response.errorMessage}"
+    }
 }
 
 // =================================================================
@@ -126,11 +153,13 @@ def handlePushcutResponse(response, data) {
 // =================================================================
 
 def createChild() {
-    def dni = "Pushcut-${pushcutID}"
+    // DNI uses the Pushcut Device Name to ensure uniqueness per physical device
+    def dni = "Pushcut-Mobile-${pushcutDeviceName}"
+    
     if (!getChildDevice(dni)) {
-        addChildDevice("absolutelyNothing", "Pushcut Device", dni, [
+        addChildDevice("absolutelyNothing", "Pushcut Mobile Device", dni, [
             label: newDeviceName,
-            data: [targetName: pushcutID, isWidget: isWidget.toString()]
+            data: [pushcutTarget: pushcutDeviceName]
         ])
     }
 }
