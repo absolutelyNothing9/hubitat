@@ -105,10 +105,20 @@ def asyncHandler(resp, data) {
 // Add your scent names and URLs here using the format: "Name": "URL",
 def getScentMap() {
     return [
-        "Precious Spices": "https://imgur.com/gallery/rfPOZWT#UGRLlyP.jpg",
-        "Scent Name 2": "https://example.com/photo2.jpg",
-        "Scent Name 3": "https://example.com/photo3.jpg",
-        // Add as many as you need...
+        "Precious Spices": "https://i.imgur.com/ssDtsxT.png",
+        "Eucalyptus Nights": "https://i.imgur.com/CFeHA1t.png",
+        "Shaman’s Potion": "https://i.imgur.com/7DIYqL3.png",
+        "Incense Voodoo": "https://i.imgur.com/cmoFqDk.png",
+        "Sweet Sand": "https://i.imgur.com/9M2IVX5.png",
+        "Monoi De Tahiti": "https://i.imgur.com/yt3lD6R.png",
+        "Amber Marine": "https://i.imgur.com/xZ53Qqv.png",
+        "Neroli Citrus": "https://i.imgur.com/M0ODMac.png",
+        "Grandma Vanilla": "https://i.imgur.com/GOQsSxo.png",
+        "Lavender": "https://i.imgur.com/hywpxHb.png",
+        "Divine Rose": "https://i.imgur.com/MkHmoJa.png",
+        "Spice Market": "https://i.imgur.com/o0oo0uS.png",
+        "Lawnscape": "https://i.imgur.com/Fh8KIn4.png",
+
         
         "default": "https://example.com/default_scent.jpg" // Fallback image
     ]
