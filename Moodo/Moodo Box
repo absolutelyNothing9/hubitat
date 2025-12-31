@@ -19,6 +19,9 @@ metadata {
         attribute "Slot3_Scent", "string"
         attribute "Online", "string"
     }
+        preferences {
+            input name: "logEnable", type: "bool", title: "Enable Debug Logging", defaultValue: true
+    }
 }
 
 def on() { parent.sendMoodoRequest("boxes/${device.getDataValue('device_key')}", "POST"); sendEvent(name: "switch", value: "on") }
