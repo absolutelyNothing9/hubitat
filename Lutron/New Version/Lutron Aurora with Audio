@@ -1,11 +1,11 @@
 /**
- * Lutron Aurora Dimmer - Full 6-Schedule Circadian Engine
+ * Lutron Aurora with Audio
  * Features: Push-to-Sync, 6-Point Schedule, Occupancy Sensing, External Motion
  * Updated: Audio Mode with Music Player Link & Debounced Double-Press
  */
 
 metadata {
-    definition (name: "Lutron Aurora Dimmer - Audio & Occupancy", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+    definition (name: "Lutron Aurora with Audio", namespace: "absolutelyNothing", author: "absolutelyNothing") {
         capability "Actuator"
         capability "Switch"
         capability "Switch Level"
@@ -26,7 +26,7 @@ metadata {
 
     preferences {
         input(name: "silentTimeAfterPush", type: "number", title: "Ignore rotation after push (ms)", defaultValue: 400)
-        
+        input name: "logEnable", type: "bool", title: "Enable Debug Logging", defaultValue: true
         // --- AUDIO & MUSIC SETTINGS ---
         section("Audio Control Settings") {
              input "musicPlayer", "capability.musicPlayer", title: "Link Music Player (for Play/Pause & Vol)", multiple: false, required: false
