@@ -105,7 +105,7 @@ def asyncHandler(resp, data) {
 // Add your scent names and URLs here using the format: "Name": "URL",
 def getScentMap() {
     return [
-        "Scent Name 1": "https://example.com/photo1.jpg",
+        "Precious Spices": "https://imgur.com/gallery/rfPOZWT#UGRLlyP.jpg",
         "Scent Name 2": "https://example.com/photo2.jpg",
         "Scent Name 3": "https://example.com/photo3.jpg",
         // Add as many as you need...
