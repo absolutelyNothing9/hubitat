@@ -1,38 +1,38 @@
 /**
  * Pushcut Mobile Device Driver
- * * Represents a SINGLE iPhone/iPad.
- * Capabilities:
- * - Send Notification (Customizable)
- * - Update Widget (Foolproof JSON inputs)
+ * Represents a SINGLE iPhone/iPad (or 'All').
  */
 
 metadata {
     definition (name: "Pushcut Mobile Device", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
-        capability "Notification" // Allows standard "deviceNotification" command
+        capability "Notification" 
         capability "Actuator"
         
-        // Custom Commands for detailed control
+        // Custom Command: Send Notification
         command "sendPushcutNotification", [
-            [name:"Notification Name*", type: "STRING", description: "Name of notification in Pushcut App"],
+            [name:"Notification Name*", type: "STRING", description: "Name in Pushcut App"],
             [name:"Title", type: "STRING"],
             [name:"Text", type: "STRING"],
-            [name:"Input", type: "STRING", description: "Dynamic input passed to shortcut"],
-            [name:"Sound", type: "STRING", description: "Sound name found in Pushcut"],
-            [name:"Image URL", type: "STRING", description: "Publicly accessible image URL"]
+            [name:"Input", type: "STRING", description: "Passed to shortcut"],
+            [name:"Sound", type: "STRING", description: "Sound name in Pushcut"],
+            [name:"Image URL", type: "STRING"]
         ]
 
+        // Custom Command: Update Widget (Expanded for full onTap control)
         command "updateWidget", [
-            [name:"Widget Name*", type: "STRING", description: "Name of widget in Pushcut App"],
-            [name:"Content JSON", type: "STRING", description: "e.g. {\"text\": \"Hello\", \"percent\": 50}"],
-            [name:"Inputs JSON", type: "STRING", description: "e.g. {\"input1\": \"value\"}"],
-            [name:"On Tap Action", type: "STRING", description: "Name of action to run when tapped"]
+            [name:"Widget Name*", type: "STRING"],
+            [name:"Content JSON", type: "STRING", description: "Visuals: {\"text\": \"Hi\"}"],
+            [name:"Inputs JSON", type: "STRING", description: "Widget logic: {\"var\": 1}"],
+            [name:"OnTap Action", type: "ENUM", constraints: ["none", "url", "shortcut", "homekit", "webhook"]],
+            [name:"OnTap Value", type: "STRING", description: "URL, Shortcut Name, or Scene Name"],
+            [name:"OnTap Input", type: "STRING", description: "Input passed to Shortcut/Webhook"],
+            [name:"Run On Server", type: "ENUM", constraints: ["false", "true"], description: "Run shortcut on server?"]
         ]
         
         attribute "lastStatus", "string"
     }
 }
 
-// Standard Notification Capability (defaults to a notification named "Hubitat")
 def deviceNotification(text) {
     sendPushcutNotification("Hubitat", "Hubitat Alert", text, null, null, null)
 }
@@ -43,47 +43,61 @@ def deviceNotification(text) {
 
 def sendPushcutNotification(notifName, title, text, inputStr, sound, image) {
     def targetDevice = getDataValue("pushcutTarget")
-    
     log.info "Pushcut [${device.label}]: Sending '${notifName}' -> ${targetDevice}"
-    
     parent.sendPushcutNotification(targetDevice, notifName, title, text, inputStr, sound, image)
     sendEvent(name: "lastStatus", value: "Notif Sent: ${new Date().format('HH:mm:ss')}")
 }
 
 // ------------------------------------------------------------------
-// WIDGET LOGIC (Foolproof Parsing)
+// WIDGET LOGIC
 // ------------------------------------------------------------------
 
-def updateWidget(widgetName, contentJson, inputsJson, onTap) {
+def updateWidget(widgetName, contentJson, inputsJson, actionType, actionValue, actionInput, runOnServer) {
     def targetDevice = getDataValue("pushcutTarget")
     def safeContent = [:]
     def safeInputs = [:]
     
-    // FOOLPROOF: Try to parse JSON. If the user sends bad JSON, we catch it and log, 
-    // but don't crash the driver.
+    // 1. Parse Content JSON
     try {
-        if (contentJson) {
-            def slurper = new groovy.json.JsonSlurper()
-            safeContent = slurper.parseText(contentJson)
-        }
+        if (contentJson) safeContent = new groovy.json.JsonSlurper().parseText(contentJson)
     } catch (e) {
-        log.error "Pushcut Widget Error: Content JSON is invalid. ${e}"
-        // Fallback: treat the string as a simple text key if parsing fails? 
-        // Better to fail safe than send garbage.
-        safeContent = [error: "Invalid JSON"] 
+        log.warn "Pushcut Widget: Invalid Content JSON. Sending empty map."
     }
 
+    // 2. Parse Inputs JSON
     try {
-        if (inputsJson) {
-            def slurper = new groovy.json.JsonSlurper()
-            safeInputs = slurper.parseText(inputsJson)
-        }
+        if (inputsJson) safeInputs = new groovy.json.JsonSlurper().parseText(inputsJson)
     } catch (e) {
-        log.error "Pushcut Widget Error: Inputs JSON is invalid. ${e}"
+        log.warn "Pushcut Widget: Invalid Inputs JSON. Sending empty map."
     }
 
-    log.info "Pushcut [${device.label}]: Updating Widget '${widgetName}' -> ${targetDevice}"
+    // 3. Construct onTap Dictionary
+    def onTapMap = [:]
     
-    parent.updatePushcutWidget(targetDevice, widgetName, safeContent, safeInputs, onTap)
+    if (actionType && actionType != "none") {
+        onTapMap.action = actionType
+        
+        // Map "Value" to the correct API key based on Action Type
+        if (actionType == "url") {
+            onTapMap.url = actionValue
+        } else if (actionType == "shortcut") {
+            onTapMap.shortcut = actionValue
+            if (actionInput) onTapMap.input = actionInput // Shortcuts can take input
+        } else if (actionType == "homekit") {
+            onTapMap.scene = actionValue
+        } else if (actionType == "webhook") {
+            onTapMap.name = actionValue // Webhook name
+            if (actionInput) onTapMap.input = actionInput
+        }
+        
+        // Server execution flag (API expects boolean)
+        if (runOnServer == "true") {
+            onTapMap.shouldRunOnServer = true
+        }
+    }
+
+    log.info "Pushcut [${device.label}]: Updating Widget '${widgetName}' with onTap: ${onTapMap}"
+    
+    parent.updatePushcutWidget(targetDevice, widgetName, safeContent, safeInputs, onTapMap)
     sendEvent(name: "lastStatus", value: "Widget Updated: ${new Date().format('HH:mm:ss')}")
 }
