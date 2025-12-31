@@ -1,11 +1,11 @@
 /**
- * Lutron Aurora Dimmer - Full 6-Schedule Circadian Engine
+ * Lutron Aurora Circadian
  * Features: Push-to-Sync, 6-Point Schedule with Level & Color Defaults
  * Updated: Occupancy Sensing, External Motion Support, and Auto-Off Logic
  */
 
 metadata {
-    definition (name: "Lutron Aurora Dimmer - Full Restored", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+    definition (name: "Lutron Aurora Circadian", namespace: "absolutelyNothing", author: "absolutelyNothing") {
         capability "Actuator"
         capability "Switch"
         capability "Switch Level"
@@ -23,7 +23,7 @@ metadata {
 
     preferences {
         input(name: "silentTimeAfterPush", type: "number", title: "Ignore rotation after push (ms)", defaultValue: 400)
-        
+        input name: "logEnable", type: "bool", title: "Enable Debug Logging", defaultValue: true
         // --- NEW: OCCUPANCY & MOTION SETTINGS ---
         section("Occupancy & Motion Settings") {
             input "motionSensors", "capability.motionSensor", title: "External Motion Sensors to Monitor", multiple: true, required: false
