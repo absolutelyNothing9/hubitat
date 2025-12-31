@@ -40,6 +40,9 @@ metadata {
         attribute "Slot3_Speed", "number"
         attribute "Slot3_Color", "string" // Integrated from Code 2
     }
+        preferences {
+            input name: "logEnable", type: "bool", title: "Enable Debug Logging", defaultValue: true
+    }
 }
 
 // --- STANDARD SWITCH COMMANDS ---
