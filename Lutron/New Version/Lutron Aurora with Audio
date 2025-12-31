@@ -1,0 +1,303 @@
+/**
+ * Lutron Aurora Dimmer - Full 6-Schedule Circadian Engine
+ * Features: Push-to-Sync, 6-Point Schedule, Occupancy Sensing, External Motion
+ * Updated: Audio Mode with Music Player Link & Debounced Double-Press
+ */
+
+metadata {
+    definition (name: "Lutron Aurora Dimmer - Audio & Occupancy", namespace: "absolutelyNothing", author: "absolutelyNothing") {
+        capability "Actuator"
+        capability "Switch"
+        capability "Switch Level"
+        capability "Color Temperature"
+        capability "Audio Volume"
+        capability "Music Player" // <--- Added to support Play/Pause commands
+        capability "Battery"
+        capability "Refresh"
+        capability "PushableButton"
+        capability "Presence Sensor"
+
+        attribute "scene", "string"
+        attribute "presence", "string"
+        attribute "controlMode", "string" // Tracks "Dimmer" vs "Audio"
+
+        fingerprint profileId: "0104", inClusters: "0000,0001,0003,1000,FC00", outClusters: "0003,0004,0006,0008,0019,1000", manufacturer: "Lutron", model: "Z3-1BRL"
+    }
+
+    preferences {
+        input(name: "silentTimeAfterPush", type: "number", title: "Ignore rotation after push (ms)", defaultValue: 400)
+        
+        // --- AUDIO & MUSIC SETTINGS ---
+        section("Audio Control Settings") {
+             input "musicPlayer", "capability.musicPlayer", title: "Link Music Player (for Play/Pause & Vol)", multiple: false, required: false
+        }
+
+        // --- OCCUPANCY & MOTION SETTINGS ---
+        section("Occupancy & Motion Settings") {
+            input "motionSensors", "capability.motionSensor", title: "External Motion Sensors to Monitor", multiple: true, required: false
+            input "occupancyTimeout", "number", title: "Occupancy Timeout (Minutes)", description: "Time without activity before marked 'Not Present'", defaultValue: 30
+            input "autoOffEnabled", "bool", title: "Turn off light when Not Present?", defaultValue: false
+            input "autoOffDelay", "number", title: "Delay after 'Not Present' to turn off (Seconds)", defaultValue: 0
+        }
+
+        // --- SCHEDULE SETTINGS ---
+        section("Schedule 1: Early Dawn") {
+            input "schedule1scene", "string", title: "Schedule 1 Scene", defaultValue: "Sunrise"
+            input "schedule1start", "string", title: "Schedule 1 Start (Sunrise Offset)", defaultValue: "-0:30"
+            input "schedule1colorTemp", "int", title: "Schedule 1 Color Temp", defaultValue: 2237, unit: "K"
+            input "schedule1level", "int", title: "Schedule 1 Level", defaultValue: 20
+        }
+        section("Schedule 2: Sunrise") {
+            input "schedule2scene", "string", title: "Schedule 2 Scene", defaultValue: "Energize"
+            input "schedule2start", "string", title: "Schedule 2 Start (Sunrise Offset)", defaultValue: "0:00"
+            input "schedule2colorTemp", "int", title: "Schedule 2 Color Temp", defaultValue: 2890, unit: "K"
+            input "schedule2level", "int", title: "Schedule 2 Level", defaultValue: 50
+        }
+        section("Schedule 3: Morning") {
+            input "schedule3scene", "string", title: "Schedule 3 Scene", defaultValue: "Concentrate"
+            input "schedule3start", "string", title: "Schedule 3 Start (Sunrise Offset)", defaultValue: "1:30"
+            input "schedule3colorTemp", "int", title: "Schedule 3 Color Temp", defaultValue: 4291, unit: "K"
+            input "schedule3level", "int", title: "Schedule 3 Level", defaultValue: 100
+        }
+        section("Schedule 4: Midday") {
+            input "schedule4scene", "string", title: "Schedule 4 Scene", defaultValue: "Full Daylight"
+            input "schedule4start", "string", title: "Schedule 4 Start (Sunrise Offset)", defaultValue: "4:30"
+            input "schedule4colorTemp", "int", title: "Schedule 4 Color Temp", defaultValue: 6410, unit: "K"
+            input "schedule4level", "int", title: "Schedule 4 Level", defaultValue: 100
+        }
+        section("Schedule 5: Sunset") {
+            input "schedule5scene", "string", title: "Schedule 5 Scene", defaultValue: "Sunset"
+            input "schedule5start", "string", title: "Schedule 5 Start (Sunset Offset)", defaultValue: "0:00"
+            input "schedule5colorTemp", "int", title: "Schedule 5 Color Temp", defaultValue: 2890, unit: "K"
+            input "schedule5level", "int", title: "Schedule 5 Level", defaultValue: 60
+        }
+        section("Schedule 6: Late Night") {
+            input "schedule6scene", "string", title: "Schedule 6 Scene", defaultValue: "Nightlight"
+            input "schedule6start", "string", title: "Schedule 6 Start (Sunset Offset)", defaultValue: "3:00"
+            input "schedule6colorTemp", "int", title: "Schedule 6 Color Temp", defaultValue: 2237, unit: "K"
+            input "schedule6level", "int", title: "Schedule 6 Level", defaultValue: 10
+        }
+    }
+}
+
+// --- STANDARD ZIGBEE PARSING ---
+def parse(String description) {
+    def event = zigbee.getEvent(description)
+    if (event) {
+        if (event.name == "battery") sendEvent(name: "battery", value: event.value, unit: "%")
+    } else {
+        def descMap = zigbee.parseDescriptionAsMap(description)
+        if (descMap?.clusterInt == 0x0008) handleRotation(descMap)
+        else if (descMap?.clusterInt == 0x0006) handleButton()
+    }
+}
+
+// --- INTERACTION HANDLERS ---
+
+def handleRotation(descMap) {
+    triggerActivity() 
+    state.lastMove = now()
+    
+    // Ignore rotation if it happens immediately after a push
+    if (state.lastMove - (state.lastPush ?: 0) < (silentTimeAfterPush ?: 400)) return
+
+    int rawValue = Integer.parseInt(descMap.data[0], 16)
+    int scaledValue = Math.round(rawValue * (100/254))
+    
+    if (state.audioMode == true) {
+        // AUDIO MODE: Control Volume on this device AND the linked player
+        sendEvent(name: "volume", value: scaledValue)
+        if (musicPlayer) {
+            musicPlayer.setLevel(scaledValue)
+        }
+    } else {
+        // DIMMER MODE: Control Light
+        state.level = scaledValue
+        syncCircadian(false) 
+        sendEvent(name: "level", value: scaledValue, type: "physical")
+        sendEvent(name: "switch", value: (scaledValue > 0 ? "on" : "off"), type: "physical")
+    }
+}
+
+def handleButton() {
+    triggerActivity() 
+    def nowTime = now()
+    
+    // Check if we are waiting for a second press (Debounce Logic)
+    if (state.waitingForDoublePress) {
+        // Second press detected!
+        unschedule(executeSinglePress) // Cancel the single press action
+        state.waitingForDoublePress = false
+        
+        // Execute Double Press Action (Toggle Mode)
+        toggleControlMode()
+    } else {
+        // First press detected. Wait 2 seconds before acting.
+        state.waitingForDoublePress = true
+        state.lastPush = nowTime
+        runIn(2, executeSinglePress)
+    }
+}
+
+def executeSinglePress() {
+    state.waitingForDoublePress = false
+    
+    if (state.audioMode == true) {
+        // AUDIO MODE: Play/Pause Toggle
+        handlePlayPause()
+    } else {
+        // DIMMER MODE: Light On/Off Toggle
+        toggleLight()
+    }
+}
+
+def toggleControlMode() {
+    state.audioMode = !state.audioMode
+    def modeName = state.audioMode ? "Audio" : "Dimmer"
+    sendEvent(name: "controlMode", value: modeName, descriptionText: "Switched to ${modeName} Mode")
+    log.info "Double press confirmed: Switched to ${modeName} Mode"
+}
+
+def handlePlayPause() {
+    // If we have a linked player, check its status
+    if (musicPlayer) {
+        def currentStatus = musicPlayer.currentValue("status")
+        if (currentStatus == "playing") {
+            musicPlayer.pause()
+            sendEvent(name: "status", value: "paused")
+        } else {
+            musicPlayer.play()
+            sendEvent(name: "status", value: "playing")
+        }
+    } else {
+        // Fallback for just the dashboard tile if no player linked
+        log.warn "No Music Player linked in preferences."
+    }
+}
+
+def toggleLight() {
+    if (device.currentValue("switch") == "on") {
+        sendEvent(name: "switch", value: "off", type: "digital")
+    } else {
+        syncCircadian(true) 
+        sendEvent(name: "switch", value: "on", type: "digital")
+    }
+}
+
+// --- CIRCADIAN LOGIC ---
+def syncCircadian(forceLevel = false) {
+    def now = new Date()
+    def times = [
+        s1: getSunriseAndSunset(sunriseOffset: schedule1start).sunrise,
+        s2: getSunriseAndSunset(sunriseOffset: schedule2start).sunrise,
+        s3: getSunriseAndSunset(sunriseOffset: schedule3start).sunrise,
+        s4: getSunriseAndSunset(sunriseOffset: schedule4start).sunrise,
+        s5: getSunriseAndSunset(sunsetOffset: schedule5start).sunset,
+        s6: getSunriseAndSunset(sunsetOffset: schedule6start).sunset
+    ]
+    
+    def targetTemp = schedule6colorTemp
+    def targetLvl = schedule6level
+    def sceneName = schedule6scene
+
+    if (timeOfDayIsBetween(times.s1, times.s2, now, location.timeZone)) {
+        targetTemp = schedule1colorTemp; targetLvl = schedule1level; sceneName = schedule1scene
+    } else if (timeOfDayIsBetween(times.s2, times.s3, now, location.timeZone)) {
+        targetTemp = schedule2colorTemp; targetLvl = schedule2level; sceneName = schedule2scene
+    } else if (timeOfDayIsBetween(times.s3, times.s4, now, location.timeZone)) {
+        targetTemp = schedule3colorTemp; targetLvl = schedule3level; sceneName = schedule3scene
+    } else if (timeOfDayIsBetween(times.s4, times.s5, now, location.timeZone)) {
+        targetTemp = schedule4colorTemp; targetLvl = schedule4level; sceneName = schedule4scene
+    } else if (timeOfDayIsBetween(times.s5, times.s6, now, location.timeZone)) {
+        targetTemp = schedule5colorTemp; targetLvl = schedule5level; sceneName = schedule5scene
+    }
+
+    sendEvent(name: "colorTemperature", value: targetTemp, unit: "K")
+    sendEvent(name: "scene", value: sceneName)
+    
+    if (forceLevel) {
+        sendEvent(name: "level", value: targetLvl, unit: "%")
+    }
+}
+
+// --- COMMANDS ---
+def on() { 
+    triggerActivity() 
+    syncCircadian(true)
+    sendEvent(name: "switch", value: "on") 
+}
+
+def off() { 
+    sendEvent(name: "switch", value: "off") 
+}
+
+// Audio Capability Commands
+def play() { musicPlayer?.play(); sendEvent(name: "status", value: "playing") }
+def pause() { musicPlayer?.pause(); sendEvent(name: "status", value: "paused") }
+def stop() { musicPlayer?.stop(); sendEvent(name: "status", value: "stopped") }
+
+def setVolume(volume) {
+    sendEvent(name: "volume", value: volume)
+    musicPlayer?.setLevel(volume)
+}
+
+def volumeUp() {
+    def current = device.currentValue("volume") ?: 0
+    setVolume(Math.min(current + 10, 100))
+}
+
+def volumeDown() {
+    def current = device.currentValue("volume") ?: 0
+    setVolume(Math.max(current - 10, 0))
+}
+
+def mute() { musicPlayer?.mute(); sendEvent(name: "mute", value: "muted") }
+def unmute() { musicPlayer?.unmute(); sendEvent(name: "mute", value: "unmuted") }
+
+def refresh() { syncCircadian(false) }
+
+def installed() { 
+    sendEvent(name: "presence", value: "present") 
+    sendEvent(name: "controlMode", value: "Dimmer")
+    updated()
+}
+
+// --- OCCUPANCY & SUBSCRIPTION LOGIC ---
+
+def updated() {
+    unsubscribe()
+    if (motionSensors) {
+        subscribe(motionSensors, "motion", handleMotionEvent)
+    }
+}
+
+def handleMotionEvent(evt) {
+    if (evt.value == "active") {
+        triggerActivity()
+    }
+}
+
+def triggerActivity() {
+    if (device.currentValue("presence") != "present") {
+        sendEvent(name: "presence", value: "present", descriptionText: "Occupancy detected via interaction or motion")
+    }
+    
+    unschedule(markNotPresent)
+    
+    def timeoutMin = occupancyTimeout != null ? occupancyTimeout : 30
+    def timeoutSeconds = timeoutMin * 60
+    
+    runIn(timeoutSeconds, markNotPresent)
+}
+
+def markNotPresent() {
+    sendEvent(name: "presence", value: "not present", descriptionText: "No activity for ${occupancyTimeout} minutes")
+    
+    if (autoOffEnabled) {
+        if (autoOffDelay && autoOffDelay > 0) {
+            runIn(autoOffDelay, off)
+        } else {
+            off()
+        }
+    }
+}
