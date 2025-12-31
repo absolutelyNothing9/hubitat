@@ -1,6 +1,7 @@
 /**
  * Lutron Aurora Dimmer - Full 6-Schedule Circadian Engine
  * Features: Push-to-Sync, 6-Point Schedule with Level & Color Defaults
+ * Updated: Occupancy Sensing, External Motion Support, and Auto-Off Logic
  */
 
 metadata {
@@ -23,7 +24,15 @@ metadata {
     preferences {
         input(name: "silentTimeAfterPush", type: "number", title: "Ignore rotation after push (ms)", defaultValue: 400)
         
-        // RESTORED 6-SCHEDULE CONFIGURATION WITH TITLES AND DEFAULTS
+        // --- NEW: OCCUPANCY & MOTION SETTINGS ---
+        section("Occupancy & Motion Settings") {
+            input "motionSensors", "capability.motionSensor", title: "External Motion Sensors to Monitor", multiple: true, required: false
+            input "occupancyTimeout", "number", title: "Occupancy Timeout (Minutes)", description: "Time without activity before marked 'Not Present'", defaultValue: 30
+            input "autoOffEnabled", "bool", title: "Turn off light when Not Present?", defaultValue: false
+            input "autoOffDelay", "number", title: "Delay after 'Not Present' to turn off (Seconds)", defaultValue: 0
+        }
+
+        // RESTORED 6-SCHEDULE CONFIGURATION
         section("Schedule 1: Early Dawn") {
             input "schedule1scene", "string", title: "Schedule 1 Scene", defaultValue: "Sunrise"
             input "schedule1start", "string", title: "Schedule 1 Start (Sunrise Offset)", defaultValue: "-0:30"
@@ -63,6 +72,7 @@ metadata {
     }
 }
 
+// --- STANDARD ZIGBEE PARSING ---
 def parse(String description) {
     def event = zigbee.getEvent(description)
     if (event) {
@@ -74,7 +84,9 @@ def parse(String description) {
     }
 }
 
+// --- INTERACTION HANDLERS ---
 def handleRotation(descMap) {
+    triggerActivity() // Physical interaction counts as occupancy
     state.lastMove = now()
     if (state.lastMove - (state.lastPush ?: 0) < (silentTimeAfterPush ?: 400)) return
 
@@ -89,6 +101,7 @@ def handleRotation(descMap) {
 }
 
 def handleButton() {
+    triggerActivity() // Physical interaction counts as occupancy
     state.lastPush = now()
     if (device.currentValue("switch") == "on") {
         sendEvent(name: "switch", value: "off", type: "digital")
@@ -98,6 +111,7 @@ def handleButton() {
     }
 }
 
+// --- CIRCADIAN LOGIC ---
 def syncCircadian(forceLevel = false) {
     def now = new Date()
     def times = [
@@ -134,7 +148,71 @@ def syncCircadian(forceLevel = false) {
     }
 }
 
-def on() { syncCircadian(true); sendEvent(name: "switch", value: "on") }
-def off() { sendEvent(name: "switch", value: "off") }
+// --- COMMANDS ---
+def on() { 
+    triggerActivity() 
+    syncCircadian(true)
+    sendEvent(name: "switch", value: "on") 
+}
+
+def off() { 
+    // We do NOT triggerActivity here usually, as turning off might imply leaving, 
+    // but if manual interaction is desired as presence, you could uncomment the next line:
+    // triggerActivity() 
+    sendEvent(name: "switch", value: "off") 
+}
+
 def refresh() { syncCircadian(false) }
-def installed() { sendEvent(name: "presence", value: "present") }
+
+def installed() { 
+    sendEvent(name: "presence", value: "present") 
+    updated()
+}
+
+// --- NEW: OCCUPANCY & SUBSCRIPTION LOGIC ---
+
+def updated() {
+    unsubscribe()
+    // Listen to external motion sensors defined in preferences
+    if (motionSensors) {
+        subscribe(motionSensors, "motion", handleMotionEvent)
+    }
+}
+
+// Handler for external motion events
+def handleMotionEvent(evt) {
+    if (evt.value == "active") {
+        triggerActivity()
+    }
+}
+
+// Core Activity Trigger: Resets the timer and marks present
+def triggerActivity() {
+    // If not currently present, mark as present
+    if (device.currentValue("presence") != "present") {
+        sendEvent(name: "presence", value: "present", descriptionText: "Occupancy detected via interaction or motion")
+    }
+    
+    // Reset the "Not Present" timer
+    unschedule(markNotPresent)
+    
+    // Default to 30 minutes if null
+    def timeoutMin = occupancyTimeout != null ? occupancyTimeout : 30
+    def timeoutSeconds = timeoutMin * 60
+    
+    runIn(timeoutSeconds, markNotPresent)
+}
+
+// Called when the timer expires
+def markNotPresent() {
+    sendEvent(name: "presence", value: "not present", descriptionText: "No activity for ${occupancyTimeout} minutes")
+    
+    // Check Auto-Off Logic
+    if (autoOffEnabled) {
+        if (autoOffDelay && autoOffDelay > 0) {
+            runIn(autoOffDelay, off)
+        } else {
+            off()
+        }
+    }
+}
