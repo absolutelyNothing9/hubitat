@@ -1,9 +1,5 @@
 /**
  * Pushcut Ultimate Integration - PARENT APP
- * * Logic:
- * - Manages API Keys and Inbound Webhooks.
- * - Creates Child Devices representing Physical iOS Devices.
- * - Routes commands from Child Devices to the Pushcut API with specific device targeting.
  */
 
 definition(
@@ -44,7 +40,7 @@ def mainPage() {
         }
         
         section("Managed iOS Devices") {
-            paragraph "Create a virtual device for every physical iPhone or iPad in your Pushcut account."
+            paragraph "Create a virtual device for every physical iPhone or iPad."
             href(name: "addChildLink", title: "Add New iOS Device", page: "addChildPage")
             
             def children = getChildDevices()
@@ -58,8 +54,8 @@ def mainPage() {
 def addChildPage() {
     return dynamicPage(name: "addChildPage", title: "Add iOS Device") {
         section {
-            input "newDeviceName", "text", title: "Device Label (e.g., John's iPhone)", required: true
-            input "pushcutDeviceName", "text", title: "Pushcut Device Name", description: "Must match the device name in Pushcut Settings exactly.", required: true
+            input "newDeviceName", "text", title: "Hubitat Device Name", required: true
+            input "pushcutDeviceName", "text", title: "Pushcut Device Name", description: "Must match iOS setting exactly. Use 'All' to broadcast.", required: true
         }
         section {
             action(name: "createNewDevice", title: "Create Device Now", action: "createChild")
@@ -68,7 +64,7 @@ def addChildPage() {
 }
 
 // =================================================================
-// 🚨 INBOUND SERVER LOGIC (Receiving commands from iOS)
+// 🚨 INBOUND SERVER LOGIC
 // =================================================================
 
 def handlePushcutCommand() {
@@ -100,35 +96,37 @@ def handlePushcutCommand() {
 }
 
 // =================================================================
-// ⬆️ OUTBOUND LOGIC (Sending data to iOS)
+// ⬆️ OUTBOUND LOGIC
 // =================================================================
 
-/**
- * Sends a notification request to the Pushcut API, targeting a specific device.
- */
 def sendPushcutNotification(targetDeviceName, notificationName, title, text, inputStr, sound, image) {
     def body = [
         title: title,
         text: text,
         input: inputStr,
         sound: sound,
-        image: image,
-        devices: [targetDeviceName] // 👈 Targets specific device
+        image: image
     ].findAll { k, v -> v != null && v != "" }
+    
+    // Broadcast logic: If target is "All", do not restrict 'devices' array
+    if (targetDeviceName != "All") {
+        body.devices = [targetDeviceName]
+    }
     
     sendPushcutRequest("notifications/${notificationName}", body)
 }
 
-/**
- * Sends a widget update request to the Pushcut API, targeting a specific device.
- */
-def updatePushcutWidget(targetDeviceName, widgetName, contentMap, inputsMap, onTap) {
+def updatePushcutWidget(targetDeviceName, widgetName, contentMap, inputsMap, onTapMap) {
     def body = [
         content: contentMap,
         inputs: inputsMap,
-        onTap: onTap,
-        devices: [targetDeviceName] // 👈 Targets specific device
+        onTap: onTapMap
     ].findAll { k, v -> v != null && v != "" && v != [:] }
+
+    // Broadcast logic
+    if (targetDeviceName != "All") {
+        body.devices = [targetDeviceName]
+    }
 
     sendPushcutRequest("widgets/${widgetName}", body)
 }
@@ -153,9 +151,7 @@ def handlePushcutResponse(response, data) {
 // =================================================================
 
 def createChild() {
-    // DNI uses the Pushcut Device Name to ensure uniqueness per physical device
     def dni = "Pushcut-Mobile-${pushcutDeviceName}"
-    
     if (!getChildDevice(dni)) {
         addChildDevice("absolutelyNothing", "Pushcut Mobile Device", dni, [
             label: newDeviceName,
