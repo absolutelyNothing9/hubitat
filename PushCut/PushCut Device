@@ -1,50 +1,89 @@
 /**
- * Pushcut Universal Device Driver
- * Create a virtual device for each Pushcut Notification or Widget you want to control.
+ * Pushcut Mobile Device Driver
+ * * Represents a SINGLE iPhone/iPad.
+ * Capabilities:
+ * - Send Notification (Customizable)
+ * - Update Widget (Foolproof JSON inputs)
  */
+
 metadata {
-    definition (name: "Pushcut Device", namespace: "absolutelyNothing", author: "absolutelyNothing") {
-        capability "Switch"        // Turning ON sends the notification/widget update
-        capability "Momentary"    // Allows the "Push" command
+    definition (name: "Pushcut Mobile Device", namespace: "absolutelyNothing9", author: "absolutelyNothing9") {
+        capability "Notification" // Allows standard "deviceNotification" command
         capability "Actuator"
         
-        attribute "status", "string"
+        // Custom Commands for detailed control
+        command "sendPushcutNotification", [
+            [name:"Notification Name*", type: "STRING", description: "Name of notification in Pushcut App"],
+            [name:"Title", type: "STRING"],
+            [name:"Text", type: "STRING"],
+            [name:"Input", type: "STRING", description: "Dynamic input passed to shortcut"],
+            [name:"Sound", type: "STRING", description: "Sound name found in Pushcut"],
+            [name:"Image URL", type: "STRING", description: "Publicly accessible image URL"]
+        ]
+
+        command "updateWidget", [
+            [name:"Widget Name*", type: "STRING", description: "Name of widget in Pushcut App"],
+            [name:"Content JSON", type: "STRING", description: "e.g. {\"text\": \"Hello\", \"percent\": 50}"],
+            [name:"Inputs JSON", type: "STRING", description: "e.g. {\"input1\": \"value\"}"],
+            [name:"On Tap Action", type: "STRING", description: "Name of action to run when tapped"]
+        ]
+        
+        attribute "lastStatus", "string"
     }
-
-    preferences {
-        input name: "pushcutType", type: "enum", title: "Action Type", options: ["Notification", "Widget"], defaultValue: "Notification", required: true
-        input name: "targetName", type: "text", title: "Pushcut Item Name (Exactly as in App)", required: true
-        input name: "defaultTitle", type: "text", title: "Default Title (Notifications Only)", defaultValue: "Hubitat Alert"
-        input name: "defaultMessage", type: "text", title: "Default Message / Widget JSON", defaultValue: '{"status":"Active"}', description: "For widgets, enter valid JSON."
-    }
 }
 
-def on() {
-    push()
+// Standard Notification Capability (defaults to a notification named "Hubitat")
+def deviceNotification(text) {
+    sendPushcutNotification("Hubitat", "Hubitat Alert", text, null, null, null)
 }
 
-def off() {
-    sendEvent(name: "switch", value: "off")
-}
+// ------------------------------------------------------------------
+// NOTIFICATION LOGIC
+// ------------------------------------------------------------------
 
-def push() {
-    sendEvent(name: "switch", value: "on")
-    log.info "Pushcut Device [${device.label}]: Triggering ${pushcutType} '${targetName}'"
+def sendPushcutNotification(notifName, title, text, inputStr, sound, image) {
+    def targetDevice = getDataValue("pushcutTarget")
     
-    if (pushcutType == "Notification") {
-        parent.sendPushcutNotification(targetName, defaultTitle, defaultMessage)
-    } else {
-        // Parse the default message as JSON for the widget
-        try {
+    log.info "Pushcut [${device.label}]: Sending '${notifName}' -> ${targetDevice}"
+    
+    parent.sendPushcutNotification(targetDevice, notifName, title, text, inputStr, sound, image)
+    sendEvent(name: "lastStatus", value: "Notif Sent: ${new Date().format('HH:mm:ss')}")
+}
+
+// ------------------------------------------------------------------
+// WIDGET LOGIC (Foolproof Parsing)
+// ------------------------------------------------------------------
+
+def updateWidget(widgetName, contentJson, inputsJson, onTap) {
+    def targetDevice = getDataValue("pushcutTarget")
+    def safeContent = [:]
+    def safeInputs = [:]
+    
+    // FOOLPROOF: Try to parse JSON. If the user sends bad JSON, we catch it and log, 
+    // but don't crash the driver.
+    try {
+        if (contentJson) {
             def slurper = new groovy.json.JsonSlurper()
-            def widgetData = slurper.parseText(defaultMessage)
-            parent.updatePushcutWidget(targetName, widgetData)
-        } catch (e) {
-            log.error "Invalid JSON in defaultMessage: ${e}"
+            safeContent = slurper.parseText(contentJson)
         }
+    } catch (e) {
+        log.error "Pushcut Widget Error: Content JSON is invalid. ${e}"
+        // Fallback: treat the string as a simple text key if parsing fails? 
+        // Better to fail safe than send garbage.
+        safeContent = [error: "Invalid JSON"] 
     }
+
+    try {
+        if (inputsJson) {
+            def slurper = new groovy.json.JsonSlurper()
+            safeInputs = slurper.parseText(inputsJson)
+        }
+    } catch (e) {
+        log.error "Pushcut Widget Error: Inputs JSON is invalid. ${e}"
+    }
+
+    log.info "Pushcut [${device.label}]: Updating Widget '${widgetName}' -> ${targetDevice}"
     
-    // Reset switch state after a moment (Momentary behavior)
-    runIn(1, off)
-    sendEvent(name: "status", value: "Sent at ${new Date().format('HH:mm:ss')}")
+    parent.updatePushcutWidget(targetDevice, widgetName, safeContent, safeInputs, onTap)
+    sendEvent(name: "lastStatus", value: "Widget Updated: ${new Date().format('HH:mm:ss')}")
 }
